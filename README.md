@@ -1,8 +1,9 @@
-# python package `physicsfront.qiskit`
+# `physicsfront.qiskit`
 
-This package provides some functions that are useful for running `qiskit`.
+This python package provides some functions that are useful for running
+`qiskit`.
 
-## python module `physicsfront.qiskit.colab`
+## `physicsfront.qiskit.colab`
 
-This module provides utility functions for running `qiskit` in Google
+This python module provides utility functions for running `qiskit` in Google
 `Colab`.

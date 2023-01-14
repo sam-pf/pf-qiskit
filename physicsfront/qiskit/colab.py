@@ -22,8 +22,8 @@ def _install_pip_packages (reload = False, quiet = False):
                          "is false.")
     pkgs = ["qiskit", "pylatexenc"]
     if not quiet:
-        print ("== Installing required pip packages:", pkgs, '...', end = '',
-               flush = True)
+        print ("== Installing/chekcing required pip packages:", pkgs,
+               '...', end = '', flush = True)
     r = subprocess.run ([sys.executable, "-m", "pip", "install"] + pkgs, # pylint: disable=W1510
                         capture_output = True)
     rv = r.returncode
@@ -66,6 +66,27 @@ def _setup_account (reload = False, quiet = False):
     if not quiet:
         print ("== Account setup ... OK!")
 
+def _setup_settings (reload = False, quiet = False):
+    import os.path
+    settings_dir = os.path.join (os.path.expandvars ('$HOME'), '.qiskit')
+    if not os.path.exists (settings_dir):
+        os.mkdir (settings_dir)
+    settings_file = os.path.join (settings_dir, 'settings.conf')
+    if os.path.exists (settings_file):
+        if not quiet:
+            print ("== qiskit settings.conf exists---no action done to it")
+        if reload:
+            print ("== qiskit settings.conf: reload action unimplemented yet")
+        return
+    import io
+    with io.open (settings_file, 'w', encoding = 'utf-8') as f:
+        f.write ('''[default]
+circuit_drawer = mpl
+''')
+    if not quiet:
+        print ("== qiskit settings.conf was created with default content.")
+
 def init (reload = False, quiet = False):
     _install_pip_packages (reload = reload, quiet = quiet)
     _setup_account (reload = reload, quiet = quiet)
+    _setup_settings (reload = reload, quiet = quiet)

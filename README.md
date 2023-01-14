@@ -1,9 +1,10 @@
 # `physicsfront.qiskit`
 
-This python package provides some functions that are useful for running
-`qiskit`.
+This python package is essentially a utility package around IBM `qiskit`.
+For example `physicsfront.qiskit.colab` supports initializing the IBM Quantum
+account in the Google Colab environment.  In addition, `physicsfront.qiskit`
+provides some utility functions for running jobs in `qiskit`.
 
-## `physicsfront.qiskit.colab`
+## Installation
 
-This python module provides utility functions for running `qiskit` in Google
-`Colab`.
+`pip install physicsfront-qiskit`

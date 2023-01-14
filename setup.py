@@ -14,65 +14,92 @@
 # limitations under the License.
 ##
 
-import io, os, setuptools, sys
-
-
-# Package metadata.
-
 name = "physicsfront-qiskit"
+author = "Physics Front LLC"
+author_email = "info@physicsfront.com"
+url = "https://github.com/sam-pf/pf-qiskit"
+project_urls = {
+    'GitHub': url,
+    # potential useful keys: 'Documentation', 'ChangeLog', 'Issues', ...
+}
+version = "0.1.1"
+license_ = "Apache 2.0"
 description = "Utility package for qiskit"
+long_description = "This package provides modules such as physicsfront.qiskit and physicsfront.qiskit.colab.  These modules can be used to aid the usage of qiskit in various environments, e.g., in the Google Colab environment."
 
 # Should be one of:
 # 'Development Status :: 3 - Alpha'
 # 'Development Status :: 4 - Beta'
 # 'Development Status :: 5 - Production/Stable'
 release_status = 'Development Status :: 3 - Alpha'
+
 ##
-# These dependencies and python_requires are rough values based on the
-# limited testing in google colab (Jan 2023).
+# These requirements are rough values determined from limited test runs in
+# google colab as well as terminal based ipython.
 ##
 dependencies = [
-    "matplotlib >= 3.2.2",
     "qiskit >= 0.39.4",
-    "pylatexenc >= 2.10",
 ]
-#extras = {}
+extras = {
+    "mpl": [
+        "matplotlib >= 3.2.2",
+        "pylatexenc >= 2.10",
+    ],
+}
 python_requires = ">=3.8"
 
-# Setup boilerplate below this line.
+import os, setuptools, sys
 
-package_root = os.path.abspath (os.path.dirname (__file__))
+##
+# Include only packages under the 'physicsfront' namespace.  In particular,
+# no tests, benchmarks, etc.
+##
+packages = [package for package in setuptools.find_packages ()
+            if package.startswith ("physicsfront")]
 
-version = "0.1.0"
-
-readme_filename = os.path.join (package_root, "README.md")
-with io.open (readme_filename, encoding="utf-8") as readme_file:
-    readme = readme_file.read ()
-
-# Only include packages under the 'physicsfront' namespace. Do not include tests, benchmarks, etc.
-packages = [
-    package for package in setuptools.find_packages () if package.startswith("physicsfront")
-]
-
-# Determine which namespaces are needed.
 namespaces = ["physicsfront"]
+# any additional namespace as necessary (none so far)
 #if "physicsfront.cloud" in packages:
 #    namespaces.append("physicsfront.cloud")
 
-# for 'ap' dev cycle
-if __name__ == '__main__' and len (sys.argv) == 1:
-    sys.argv.append ('check')
+# <<< pf dev cycle support: _do_setup, sys.argv
+# only if var '_do_setup' is pre-defined or os.environ has 'PYARUNNING'
 
-setuptools.setup (
-    name=name,
-    version=version,
-    description=description,
-    long_description=readme,
-    author="Physics Front LLC",
-    author_email="info@physicsfront.com",
-    license="Apache 2.0",
-    url="https://github.com/sam-pf/pf-qiskit",
-    classifiers=[
+##
+# The content of this file may be just read to extract the values of certain
+# parameters, not to really run the setup.  In such a case, define _do_setup
+# with a false value _before_ running the content of this file.
+#
+# Example: python3 -c '_do_setup = False; exec (open ("setup.py", "r").read ()); print (version)'
+##
+try:
+    _do_setup # pylint: disable=E0601
+except:
+    _do_setup = True
+
+if _do_setup and __name__ == '__main__' and os.environ.get ('PYARUNNING'):
+    # 'PYARUNNING' set with any non-empty value? take it as 'pdf dev cycle'.
+    if sys.argv [-1] == 'setup.py' or sys.argv [-1].endswith ('/setup.py'):
+        ##
+        # Some (auto) pf dev cylce command may invoke this file with no
+        # argument following this file name.  We allow such type of
+        # invocation by falling back to 'check'.
+        ##
+        sys.argv.append ('check')
+
+# >>>
+
+if _do_setup: setuptools.setup (
+    name = name,
+    version = version,
+    description = description,
+    long_description = long_description,
+    author = author,
+    author_email = author_email,
+    license = license_,
+    url = url,
+    project_urls = project_urls,
+    classifiers = [
         release_status,
         "Intended Audience :: Developers",
         "Intended Audience :: Education",
@@ -88,12 +115,10 @@ setuptools.setup (
         "Topic :: Scientific/Engineering :: Physics",
         "Topic :: Security :: Cryptography",
     ],
-    platforms="Posix; MacOS X; Windows",
-    packages=packages,
-    namespace_packages=namespaces,
-    install_requires=dependencies,
-    #extras_require=extras,
-    python_requires=python_requires,
-    include_package_data=True,
-    #zip_safe=False,
+    platforms = "Posix; MacOS X; Windows",
+    packages = packages,
+    namespace_packages = namespaces,
+    install_requires = dependencies,
+    extras_require = extras,
+    python_requires = python_requires,
 )

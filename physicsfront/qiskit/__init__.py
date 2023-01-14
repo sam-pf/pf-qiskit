@@ -72,7 +72,7 @@ def qc_for_random_bits (statevector = False, measure = True):
     return qc
 
 def run_quantum (qc, hub = 'ibm-q', shots = 2000, memory = True,
-                 backend = None):
+                 backend = None, quiet = False):
     """
     Runs a real quantum computer.  This is how the run result can be processed.
 
@@ -96,8 +96,8 @@ def run_quantum (qc, hub = 'ibm-q', shots = 2000, memory = True,
                 (filters = lambda x: x.configuration().n_qubits >= n and
                                      not x.configuration().simulator and
                                      x.status().operational == True))
-        print ("backend: automatically determined as the least busy one:",
-               backend)
+        if not quiet:
+            print ("backend auto-determined with least_busy:", backend)
     transpiled_qc = transpile (qc, backend, optimization_level=3)
     return backend.run (transpiled_qc, shots = shots, memory = memory)
 

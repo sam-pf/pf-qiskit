@@ -51,7 +51,7 @@ def _setup_account (reload = False, quiet = False):
             raise Exception ("The initializtion fucntion is called with an "
                              "active IBMQ account, while reload is false.")
     import IPython
-    from IPython.core.display import display # pylint: disable=E0611
+    from IPython.display import display
     from google.colab import output # pylint: disable=E0401,E0611
     display (IPython.display.Javascript (f'window._key = "{old_token}"'))
     display (IPython.display.Javascript ('''

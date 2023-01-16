@@ -21,7 +21,7 @@ def qc_entangled_two_qbits (kind = 1, statevector = False, measure = True):
     """
     :param statevector:  Only for simulator run.
     """
-    from qiskit import QuantumCircuit
+    from qiskit import QuantumCircuit # pylint: disable=W0406,E0611
     if statevector:
         # This is for 'qc.save_statevector'.
         from qiskit.providers.aer import Aer # pylint: disable=E0401,E0611,W0611
@@ -58,7 +58,7 @@ def qc_for_random_bits (statevector = False, measure = True):
     """
     :param statevector:  Only for simulator run.
     """
-    from qiskit import QuantumCircuit
+    from qiskit import QuantumCircuit # pylint: disable=W0406,E0611
     if statevector:
         # This is for 'qc.save_statevector'.
         from qiskit.providers.aer import Aer # pylint: disable=E0401,E0611,W0611
@@ -85,13 +85,24 @@ def run_quantum (qc, hub = 'ibm-q', shots = 2000, memory = True,
     m = r.get_memory ()
     ```
     """
-    from qiskit import IBMQ, transpile
-    from qiskit.providers.ibmq import least_busy
+    from qiskit import IBMQ, transpile # pylint: disable=W0406,E0611
+    from qiskit.providers.ibmq import least_busy # pylint: disable=W0406,E0401,E0611
     if not IBMQ.active_account ():
         raise Exception ("No IBMQ acount is active.")
     provider = IBMQ.get_provider (hub = hub)
     n = qc.num_qubits
-    if not backend:
+    if backend:
+        if type (backend) == str:
+            found = None
+            for b in provider.backends ():
+                if b.name () == backend:
+                    found = b
+                    break
+            if found is None:
+                raise ValueError (f"No backend found with name '{backend}'.")
+            backend = found
+        # In all other cases, backend must be a real backend (or simulator).
+    else:
         backend = least_busy (provider.backends
                 (filters = lambda x: x.configuration().n_qubits >= n and
                                      not x.configuration().simulator and
@@ -117,7 +128,7 @@ def run_quantum_simulator (qc, shots = 2000, memory = True, seed = 100):
         to emphasize the deterministic nature of the simulator. If seed is
         set to None, then a seed will be reset for each run by the system.
     """
-    from qiskit import Aer, assemble
+    from qiskit import Aer, assemble # pylint: disable=W0406,E0611
     o = assemble (qc)
     sim = Aer.get_backend ('aer_simulator')
     sim.set_option ('seed_simulator', seed)

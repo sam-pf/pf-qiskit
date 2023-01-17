@@ -14,10 +14,8 @@
 # limitations under the License.
 ##
 
-#from qiskit.tools.monitor import job_monitor # pylint: disable=W0611
-#from qiskit.visualization import plot_histogram # pylint: disable=W0611
-
-def qc_entangled_two_qbits (kind = 1, statevector = False, measure = True):
+def qc_entangled_two_qbits (kind = 1, statevector = False, # <<<
+                            measure = True):
     """
     :param statevector:  Only for simulator run.
     """
@@ -53,8 +51,8 @@ def qc_entangled_two_qbits (kind = 1, statevector = False, measure = True):
     if measure:
         qc.measure_all ()
     return qc
-
-def qc_for_random_bits (statevector = False, measure = True):
+# >>>
+def qc_for_random_bits (statevector = False, measure = True): # <<<
     """
     :param statevector:  Only for simulator run.
     """
@@ -70,8 +68,8 @@ def qc_for_random_bits (statevector = False, measure = True):
     if measure:
         qc.measure_all ()
     return qc
-
-def run_quantum (qc, hub = 'ibm-q', shots = 2000, memory = True,
+# >>>
+def run_quantum (qc, hub = 'ibm-q', shots = 2000, memory = True, # <<<
                  backend = None, quiet = False):
     """
     Runs a real quantum computer.  This is how the run result can be processed.
@@ -111,8 +109,8 @@ def run_quantum (qc, hub = 'ibm-q', shots = 2000, memory = True,
             print ("backend auto-determined with least_busy:", backend)
     transpiled_qc = transpile (qc, backend, optimization_level=3)
     return backend.run (transpiled_qc, shots = shots, memory = memory)
-
-def run_quantum_simulator (qc, shots = 2000, memory = True, seed = 100):
+# >>>
+def run_quantum_simulator (qc, shots = 2000, memory = True, seed = 100): # <<<
     """
     Runs a quantum simulator.
 
@@ -133,3 +131,4 @@ def run_quantum_simulator (qc, shots = 2000, memory = True, seed = 100):
     sim = Aer.get_backend ('aer_simulator')
     sim.set_option ('seed_simulator', seed)
     return sim.run (o, shots = shots, memory = memory)
+# >>>

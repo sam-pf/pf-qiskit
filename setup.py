@@ -50,12 +50,7 @@ python_requires = ">=3.8"
 
 import os, setuptools, sys
 
-##
-# Include only packages under the 'physicsfront' namespace.  In particular,
-# no tests, benchmarks, etc.
-##
-packages = [package for package in setuptools.find_packages ()
-            if package.startswith ("physicsfront")]
+packages = setuptools.find_namespace_packages (include = ['physicsfront.*'])
 
 namespaces = ["physicsfront"]
 # any additional namespace as necessary (none so far)

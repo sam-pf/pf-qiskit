@@ -14,8 +14,8 @@
 # limitations under the License.
 ##
 
-def qc_entangled_two_qbits (kind = 1, statevector = False, # <<<
-                            measure = True):
+def qc_entangled_two_qubits (kind = 1, statevector = False, # <<<
+                             measure = True):
     """
     :param statevector:  Only for simulator run.
     """
@@ -70,18 +70,20 @@ def qc_for_random_bits (statevector = False, measure = True): # <<<
     return qc
 # >>>
 def run_quantum (qc, hub = 'ibm-q', shots = 2000, memory = True, # <<<
-                 backend = None, quiet = False):
+                 qasm3 = False, backend = None, quiet = False):
     """
-    Runs a real quantum computer.  This is how the run result can be processed.
+    Runs a real quantum computer on quantum circuit ``qc``.
 
-    ```
-    qc.draw ()
-    j = run_quantum (qc)
-    job_monitor (j, interval = 2)
-    r = j.result ()
-    plot_histogram (r.get_counts ())
-    m = r.get_memory ()
-    ```
+    :param qasm3:  WIP.  Does not seem to work if this option is turned on,
+        as of 01-25-2023.  Nor do the dynamic code examples in the IBM qiskit
+        tutorial, when they are run in IBM Quantum Jupyter lab.
+
+        When this argument is turned on, passing ``backend`` as a backend
+        instance might be preferred.  And, ``memory`` might not work (I get a
+        warning).
+
+    :param backend:  If given, then it can be a backend instance or a backend
+        name.
     """
     from qiskit import IBMQ, transpile # pylint: disable=W0406,E0611
     from qiskit.providers.ibmq import least_busy # pylint: disable=W0406,E0401,E0611
@@ -101,18 +103,29 @@ def run_quantum (qc, hub = 'ibm-q', shots = 2000, memory = True, # <<<
             backend = found
         # In all other cases, backend must be a real backend (or simulator).
     else:
+        # it'd be nice to check if backend is qasm3, but don't know how yet...
+        assert not qasm3
         backend = least_busy (provider.backends
                 (filters = lambda x: x.configuration().n_qubits >= n and
                                      not x.configuration().simulator and
                                      x.status().operational == True))
         if not quiet:
             print ("backend auto-determined with least_busy:", backend)
-    transpiled_qc = transpile (qc, backend, optimization_level=3)
-    return backend.run (transpiled_qc, shots = shots, memory = memory)
+    kwargs = {}
+    if qasm3:
+        #from qiskit import qasm3 as q3 # pylint: disable=W0406,E0611
+        qc_t = transpile (qc, backend)
+        #runnable = q3.Exporter (basis_gates =
+        #        backend.configuration ().basis_gates).dumps (qc_t)
+        runnable = qc_t
+        kwargs ['dynamic'] = True
+    else:
+        runnable = transpile (qc, backend, optimization_level = 3)
+    return backend.run (runnable, shots = shots, memory = memory, ** kwargs)
 # >>>
 def run_quantum_simulator (qc, shots = 2000, memory = True, seed = 100): # <<<
     """
-    Runs a quantum simulator.
+    Runs an Aer quantum simulator on the quantum circuit ``qc``.
 
     See :func:`run_quantum` for how to process the run result.
 

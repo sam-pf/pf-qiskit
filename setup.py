@@ -38,12 +38,15 @@ release_status = 'Development Status :: 3 - Alpha'
 # google colab as well as terminal based ipython.
 ##
 dependencies = [
-    "qiskit >= 0.39.4",
+    "qiskit >= 0.39.2",
 ]
 extras = {
     "mpl": [
         "matplotlib >= 3.2.2",
         "pylatexenc >= 2.10",
+    ],
+    "ibm-provider": [
+        "qiskit_ibm_provider >= 0.1.0",
     ],
 }
 python_requires = ">=3.8"

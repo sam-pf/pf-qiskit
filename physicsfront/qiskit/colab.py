@@ -14,9 +14,9 @@
 # limitations under the License.
 ##
 
-PIP_PKGS_TO_INSTALL = ('qiskit', 'matplotlib', 'pylatexenc')
+PIP_PKGS_TO_INSTALL = ('qiskit', 'qiskit_ibm_provider', 'matplotlib', 'pylatexenc')
 
-def _check_setup_file (qiskitrc = True, fallback_filename = None): # <<<
+def _check_setup_file (kind, fallback_filename = None): # <<<
     """
     Checks the qiskitrc or settings file and returns that file name.
 
@@ -30,8 +30,10 @@ def _check_setup_file (qiskitrc = True, fallback_filename = None): # <<<
         If ``status`` is true, it will be either ``setup_filename`` or
         ``fallback_filename``.
 
-    :param qiskitrc:  If true (default), the qiskitrc file is checked.
-        If not, the settings file ('settings.conf') is checked.
+    :param kind:  'rc', 'conf', or 'json'
+
+        The corresponding file names are respectively 'qiskitrc',
+        'settings.conf', and 'qiskit-ibm.json'.
 
     :param fallback_filename:  If the file does not exist and this
         filename is given, then this file will be copied to the setup file,
@@ -42,7 +44,13 @@ def _check_setup_file (qiskitrc = True, fallback_filename = None): # <<<
     """
     import os.path, shutil
     setup_dir = os.path.join (os.path.expandvars ('$HOME'), '.qiskit')
-    filename = 'qiskitrc' if qiskitrc else 'settings.conf'
+    if kind == 'rc':
+        filename = 'qiskitrc'
+    elif kind == 'conf':
+        filename = 'settings.conf'
+    else:
+        assert kind == 'json'
+        filename = 'qiskit-ibm.json'
     setup_file = os.path.join (setup_dir, filename)
     if os.path.exists (setup_file):
         return (setup_file, setup_file)
@@ -129,7 +137,7 @@ def _setup_account (reload = False, quiet = False, filename = None): # <<<
             print ("OK! (account already active; reload not requested)\n"
                    "   Restart runtime if you wish to restart everything anew.")
         return
-    _, rv = _check_setup_file (qiskitrc = True, fallback_filename = filename)
+    _, rv = _check_setup_file ('rc', fallback_filename = filename)
     if reload: IBMQ.disable_account ()
     if rv:
         IBMQ.load_account ()
@@ -146,8 +154,21 @@ window._key = prompt ("Please enter your IBMQ API TOKEN:", window._key)
         # for safety; even if javascript is sandboxed per cell
         output.eval_js ('delete window._key')
         IBMQ.enable_account (token)
-    if not IBMQ.active_account ():
+    d = IBMQ.active_account ()
+    if not d:
         raise Exception ("Failed to set up an IBMQ account.")
+    jsonfilename, rv = _check_setup_file ('json')
+    if not rv:
+        jsonobj = {
+            'default-ibm-quantum': {
+                'channel': 'ibm_quantum',
+                'token': d ['token'],
+                'url': d.get ('url',
+                              'https://auth.quantum-computing.ibm.com/api'),
+            },
+        }
+        import json
+        json.dump (jsonobj, open (jsonfilename, 'w', encoding = 'utf-8'))
     if not quiet:
         print ("OK!")
 # >>>
@@ -155,18 +176,17 @@ def _setup_settings (reload = False, quiet = False, filename = None): # <<<
     import io
     if not quiet:
         print ("== Qiskit settings file check ...", end = ' ', flush = True)
-    setup_file, rv = _check_setup_file (qiskitrc = False,
-                                        fallback_filename = filename)
+    setupfname, rv = _check_setup_file ('conf', fallback_filename = filename)
     msg = ''
     if rv:
-        if rv == setup_file:
+        if rv == setupfname:
             msg = 'file exists'
             if reload:
                 msg += '; reload request received but reload unimplemented'
         else:
             msg = 'file was copied'
     else:
-        with io.open (setup_file, 'w', encoding = 'utf-8') as f:
+        with io.open (setupfname, 'w', encoding = 'utf-8') as f:
             f.write ('''[default]
 circuit_drawer = mpl
 ''')

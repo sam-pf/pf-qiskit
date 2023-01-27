@@ -16,6 +16,227 @@
 
 from . import colab
 
+class WiringInstruction (object): # <<<
+
+    """
+    A helper class to ease composing quantum circuits.
+
+    This class currently limits a possible wiring to attaching a quantum
+    circuit (``qc``) to an existing one (``qc0``).  For this to be able to
+    occur, ``qc`` must be a register oriented quantum circuit in the
+    following sense.
+
+    1. All qubits must be accountable through _its_ quantum registers, and
+       vice versa.
+    2. The wiring instruction (the ``wiring`` argument) should either exhaust
+       a quantum register or leave it untouched.  That is, it is not allowed
+       to wire only some qubits in a register.
+    3. All unwired registers (which include any classical registers in ``qc``)
+       will be added to ``qc0``.
+
+    The per-instruction actions occur through
+    :meth:`~WiringInstruction.prepare` and :meth:`~WiringInstruction.apply`.
+
+    The static method :meth:`~WiringInstruction.wire` is a convenience method
+    to wire multiple quantum circuits to an initial quantum circuit.
+    """
+
+    def __init__ (self, qc, wiring, barrier = False): # <<<
+        """
+        :param wiring:  Must be an iterable of 2-tuples, consisting of
+            integers.  The 2-tuples are the wiring map from the qubits of a
+            prepared preceding quantum circuit (``qc0``) to the qubits of
+            ``qc``.
+
+            Indices can be negative (reverse index).
+
+            Note that as a quantum circuit is prepared for wiring, its qubit
+            registers will become more numerous.  Negative indexes are
+            interpreted when preparing (:meth:`~WiringInstruction.prepare`)
+            the preceding  quantum circuit, rather than applying to it.
+        """
+        self._qc = qc
+        self._wiring = wiring = tuple (wiring)
+        for t in wiring:
+            if type (t) != tuple:
+                raise TypeError ("'wiring' must consist of tuples.")
+            i, j = t
+            if type (i) != int or type (j) != int:
+                raise TypeError ("'wiring' must consist of 2-tuples of int's.")
+        self._barrier = barrier
+    # >>>
+
+    # <<< def wire (qc0, * instruction):
+    @staticmethod
+    def wire (qc0, * instruction):
+        """
+        Wires ``qc0`` with other subsequent quantum circuits according to
+        ``instruction``.
+
+        Each instruction must be either a tuple, a dict, or a
+        :class:`WiringInstruction` instance.  A tuple or dict is used as
+        arguments to pass to :class:`WiringInstruction` in order to create an
+        instance on the fly.
+
+        A dict is used as keyword arguments.
+
+        A tuple is used as positional arguments, with one exception.  If the
+        tuple is a 2-tuple consisting of a tuple and a dict, then it is
+        interpreted as positional arguments and keyword arguments.
+
+        Once all :class:`WiringInstruction` instances are identified or created,
+        then they are used to prepare ``qc0`` and then applied to ``qc0``.
+
+        In this method, ``qc0`` is deep-copied first, and then, all
+        subsequent operations are applied in-place.
+        """
+        assert (instruction)
+        instructions = []
+        for instr in instruction:
+            if not isinstance (instr, WiringInstruction):
+                assert instr
+                if type (instr) == tuple:
+                    if (len (instr) == 2 and type (instr [0]) == tuple and
+                            type (instr [1]) == dict):
+                        instr = WiringInstruction (* instr [0], ** instr [1])
+                    else:
+                        instr = WiringInstruction (* instr)
+                elif type (instr) == dict:
+                    instr = WiringInstruction (** instr)
+            instructions.append (instr)
+        ans = qc0 = qc0.copy ()
+        iks = list ((instr, instr.prepare (qc0))
+                    for instr in instructions)
+        for instr, kwargs in iks:
+            kwargs ['inplace'] = True
+            ans = instr.apply (ans, kwargs)
+            assert ans is not None and ans is qc0
+        return ans
+    # >>>
+
+    def apply (self, qc0, kwargs): # <<<
+        """
+        Wires ``qc0`` and the quantum circuit registered with this object.
+
+        ``kwargs`` must be the one that has been prepared through the method
+        :meth:`~WiringInstruction.prepare`.
+
+        When applyling multiple instructions, they must be applied exactly in
+        the same order as they have been used to prepare ``qc0``.
+
+        :returns: ``qc0`` (if 'inplace' is turned on in ``kwargs``) or a new
+            quantum circuit (if not in place).
+        """
+        inplace = kwargs.get ('inplace', None)
+        if self._barrier:
+            if inplace:
+                qc0.barrier ()
+            else:
+                qc0 = qc0.copy ()
+                qc0.barrier ()
+        assert set (kwargs.keys ()) <= set (['qubits', 'clbits', 'inplace'])
+        ans = qc0.compose (self._qc, ** kwargs)
+        if ans is None:
+            assert inplace
+            return qc0
+        return ans
+    # >>>
+    def prepare (self, qc0): # <<<
+        """
+        Prepares the quantum circuit ``qc0`` in order to wire it to the
+        subsequent quantum circuit, which is the one registered in this
+        instruction object.
+
+        The preparation can fail with error.
+
+        If an error occurs or not, ``qc0`` may have been modified, having
+        acquired any new quantum and classical registers, which correspond to
+        the all unwired registers of the quantum circuit in this instruction.
+
+        If an error occurs during the addition of those registers, then
+        ``qc0`` may be in a partially modified state.  In all other cases,
+        ``qc0`` will be in either a completely untouched state (if there are
+        no registers to add, while this method returns normally, or if an
+        error occurs prior to any attempt to add registers) or
+        a fully modified state (all registers added and no errors).
+
+        :returns:  ``kwargs`` that can, and must, be used with
+            :func:`~WiringInstruction.apply` to do the actual wiring.
+        """
+        n0 = len (qc0.qubits)
+        qc1 = self._qc
+        n1 = len (qc1.qubits)
+        qubitsmap = {}
+        qubitsmap_forward = {} # this is just to check wiring integrity
+        for i, j in self._wiring:
+            i_orig = i
+            j_orig = j
+            if i < 0:
+                i += n0
+            if j < 0:
+                j += n1
+            if i < 0 or i >= n0:
+                raise ValueError ("Index out of range for qubit for the first"
+                                  " circuit: %d" % (i_orig,))
+            if j < 0 or j >= n1:
+                raise ValueError ("Index out of range for qubit for the second"
+                                  " circuit: %d" % (j_orig,))
+            # no merging or splitting allowed in wiring; always 1-to-1
+            assert j not in qubitsmap
+            qubitsmap [j] = i
+            assert i not in qubitsmap_forward
+            qubitsmap_forward [i] = j
+        ioffset = 0
+        qregs2add = []
+        for r in qc1.qregs:
+            n = r.size
+            test = sum (i in qubitsmap for i in range (ioffset, ioffset + n))
+            if not test: # all out
+                qregs2add.append ((r, ioffset))
+            elif test != n: # partially in
+                raise TypeError ("Wiring is implemented per quantum register "
+                                 "only---partially wired quantum register "
+                                 "is not allowed yet.")
+            ioffset += n
+        for r, ioffset in qregs2add:
+            n = r.size
+            for i in range (ioffset, ioffset + n):
+                assert i not in qubitsmap
+                qubitsmap [i] = n0 + i - ioffset
+            n0 += n
+        if len (qubitsmap) != n1:
+            raise TypeError ("Wiring is limited to a circuit whose qubits "
+                             "are completely accounted for by its qregs.")
+        ##
+        # At this point, qbitsmap is complete and it contains wired and
+        # non-wired indices of qc1 as its keys, and no other keys.  Namely,
+        # its keys must be exactly a set equivalent to range (n1).
+        #
+        # The following will fail should this not be true (so it doubles
+        # as an assertion).
+        ##
+        qubits_arg = list (qubitsmap [i] for i in range (n1))
+        n0_cl = len (qc0.clbits)
+        n1_cl = len (qc1.clbits)
+        if n1_cl != sum (r.size for r in qc1.cregs):
+            raise TypeError ("Wiring is limited to a circuit whose clbits "
+                             "are completely accounted for by its cregs.")
+        clbits_arg = list (range (n0_cl, n0_cl + n1_cl))
+        ##
+        # We add registers only after making sure that there are no errors.
+        #
+        # Adding registers can fail, if name conflict exists.  We leave it to
+        # user to avoid any name collision.
+        ##
+        for r, _ in qregs2add:
+            qc0.add_register (r)
+        for r in qc1.cregs:
+            qc0.add_register (r)
+        return {'qubits': qubits_arg, 'clbits': clbits_arg}
+    # >>>
+
+# >>>
+
 def backends (provider = None, hub = 'ibm-q', backend = None, ** kwargs): # <<<
     """
     Yields backends.
@@ -57,12 +278,31 @@ def backends (provider = None, hub = 'ibm-q', backend = None, ** kwargs): # <<<
         for b in it_backends:
             if type (b) == str:
                 if name2backend is None:
-                    name2backend = dict ((o.name (), o) for o in get_provider
-                        (provider = provider, hub = hub).backends (** kwargs))
+                    # name is method in BackendV1 and property in BackendV2
+                    name2backend = dict (((s (), o) if callable (s) else (s, o))
+                        for (s, o) in ((o.name, o) for o in get_provider
+                        (provider = provider, hub = hub).backends (** kwargs)))
                 yield name2backend [b]
             else:
                 assert isinstance (b, Backend)
                 yield b
+# >>>
+def gather_counts (r, converter = None): # <<<
+    """
+    Gathers counts from the run result (``r``).
+
+    With ``converter`` unspecified, this function is just the same as
+    ``r.get_counts ()``.
+
+    With ``converter`` specified, this function will look at the raw data
+    (``r.get_memory ()``) and applies ``converter`` to the raw data before
+    building the counter dictionary.
+    """
+    if converter is None:
+        return r.get_counts ()
+    m = r.get_memory ()
+    from collections import Counter
+    return Counter (e for e in (converter (k) for k in m) if e is not None)
 # >>>
 def get_provider (provider = None, hub = 'ibm-q'): # <<<
     if provider is None:
@@ -132,7 +372,12 @@ def run_quantum (qc, hub = 'ibm-q', shots = 2000, memory = True, # <<<
         name.
     """
     n = qc.num_qubits
-    bs = list (backends (hub = hub, backend = backend,
+    if qasm3:
+        from qiskit_ibm_provider import IBMProvider
+        provider = IBMProvider ()
+    else:
+        provider = None
+    bs = list (backends (provider = provider, hub = hub, backend = backend,
                          filters = lambda x:
                             x.configuration ().n_qubits >= n and
                             not x.configuration ().simulator and
@@ -181,3 +426,4 @@ def run_quantum_simulator (qc, shots = 2000, memory = True, seed = 100): # <<<
     sim.set_option ('seed_simulator', seed)
     return sim.run (o, shots = shots, memory = memory)
 # >>>
+wire = WiringInstruction.wire

@@ -203,3 +203,4 @@ def init (reload = False, quiet = False, qiskitrc_filename = None,
                      filename = settings_filename)
     _setup_account (reload = reload, quiet = quiet,
                     filename = qiskitrc_filename)
+    from . import patch as _

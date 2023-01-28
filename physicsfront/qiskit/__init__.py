@@ -15,6 +15,11 @@
 ##
 
 from . import colab
+try:
+    from . import patch
+except ModuleNotFoundError:
+    # e.g., if qiskit is not available yet (in colab)
+    pass
 
 class WiringInstruction (object): # <<<
 

@@ -32,9 +32,9 @@ that ``params`` accepts a new type of value, a tuple.
             ``(100, 0)``
             ``(1, 0)``
             ``((100, -1), 0)``
-            ``((50, j), (50, -1))``
-            ``((0.5, j), (0.5, -1))``
-            ``((70, np.exp(2j)), (30, -j))``
+            ``((50, 1j), (50, -1))``
+            ``((0.5, 1j), (0.5, -1))``
+            ``((70, np.exp(2j)), (30, -1j))``
 
     In the last expression, ``import numpy as np`` is assumed to have
     been executed already.
@@ -50,10 +50,10 @@ that ``params`` accepts a new type of value, a tuple.
     if _initialize_orig.__doc__:
         docstr += """
 
-    --- The docstring for the unpatched version of this method follows. ---
+--- The documentation for the unpatched version of this method follows. ---
 
 """ + _initialize_orig.__doc__
-    def _initialize_ (self, params, qubits = None): # <<<
+    def initialize (self, params, qubits = None): # <<<
         if isinstance (params, tuple):
             params_new = []
             pr_sum = 0.
@@ -84,8 +84,8 @@ that ``params`` accepts a new type of value, a tuple.
             params = params_new
         return _initialize_orig (self, params, qubits = qubits)
     # >>>
-    _initialize_.__doc__ = docstr
-    return _initialize_
+    initialize.__doc__ = docstr
+    return initialize
 # >>>
 _initialize = _initialize ()
 

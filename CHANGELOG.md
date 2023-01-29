@@ -1,5 +1,10 @@
 # 0.1.3
->
+> qiskit.patch of QuantumCircuit.initialize updated (tuple notation)
+
+1. qiskit.WiringInstruction.prepare processes qubits first and then, only for
+   unwired qubits, qregs
+1. qiskit.patch updates the patch for QuantumCircuit.initialize: tuple
+   notation for probability notation and no 'unit' argument
 
 # 0.1.2
 > wire,patch (of QuantumCircuit.initialize) added to physicsfront.qiskit

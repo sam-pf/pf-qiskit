@@ -191,27 +191,44 @@ class WiringInstruction (object): # <<<
             qubitsmap [j] = i
             assert i not in qubitsmap_forward
             qubitsmap_forward [i] = j
-        ioffset = 0
+        ##
+        # The requirements for qc1 to be wireable to qc0.
+        #
+        # (In sum: Any unwired qubits/clbits must belong in qc1's registers,
+        #          in which no wired qubits/clbits are allowed.)
+        #
+        # 1. After all qubits with indices as registered in qubitsmap are
+        #    taken into account, any remaining qubits must belong in quantum
+        #    registers.
+        # 2. In any of those remaining registers, there should not exist any
+        #    wired qubit.  Namely, those registers should consist of purely
+        #    unwired qubits.
+        # 3. At the moment, no classical bits are allowed to be wired, and
+        #    all classical bits must be accounted for precisely by all
+        #    classical registers of qc1.
+        ##
+        unwired_qbits_map = dict ((qb, i) for i, qb in enumerate (qc1.qubits)
+                                   if i not in qubitsmap)
         qregs2add = []
         for r in qc1.qregs:
+            test = sum (b in unwired_qbits_map for b in r)
+            if test == r.size:
+                qregs2add.append (r)
+            elif test:
+                raise TypeError ("Wiring is implemented only if unwired "
+                                 "qubits are not mixed with wired qubits "
+                                 "in their common register.")
+        for r in qregs2add:
             n = r.size
-            test = sum (i in qubitsmap for i in range (ioffset, ioffset + n))
-            if not test: # all out
-                qregs2add.append ((r, ioffset))
-            elif test != n: # partially in
-                raise TypeError ("Wiring is implemented per quantum register "
-                                 "only---partially wired quantum register "
-                                 "is not allowed yet.")
-            ioffset += n
-        for r, ioffset in qregs2add:
-            n = r.size
-            for i in range (ioffset, ioffset + n):
-                assert i not in qubitsmap
-                qubitsmap [i] = n0 + i - ioffset
+            ioffset = unwired_qbits_map [r [0]]
+            # anticipate that qregs will be added to qc0
+            for i in range (n):
+                assert i + ioffset not in qubitsmap
+                qubitsmap [i + ioffset] = n0 + i
             n0 += n
         if len (qubitsmap) != n1:
-            raise TypeError ("Wiring is limited to a circuit whose qubits "
-                             "are completely accounted for by its qregs.")
+            raise TypeError ("Wiring is limited to a circuit whose unwired "
+                             "qubits are totally accounted for by its qregs.")
         ##
         # At this point, qbitsmap is complete and it contains wired and
         # non-wired indices of qc1 as its keys, and no other keys.  Namely,
@@ -233,7 +250,7 @@ class WiringInstruction (object): # <<<
         # Adding registers can fail, if name conflict exists.  We leave it to
         # user to avoid any name collision.
         ##
-        for r, _ in qregs2add:
+        for r in qregs2add:
             qc0.add_register (r)
         for r in qc1.cregs:
             qc0.add_register (r)

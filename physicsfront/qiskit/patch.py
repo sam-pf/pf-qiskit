@@ -1,7 +1,7 @@
 def _initialize (): # <<<
     import qiskit
     from math import isclose, sqrt
-    from numpy import abs # pylint: disable=W0622
+    from numpy import exp, pi
     # pylint: disable=E0401,E0611
     from qiskit.circuit.library.data_preparation import state_preparation
     # pylint: enable=E0401,E0611
@@ -12,40 +12,63 @@ A patched version of :meth:`qiskit.QuantumCircuit.initialize` so
 that ``params`` accepts a new type of value, a tuple.
 
     When ``params`` is a tuple, it is taken as a probability sequence
-    (rather than a probability amplitude sequence, if ``params`` is a
-     list).
+    (rather than a probability amplitude sequence expresssed as a list).
 
-    The probabilities may be given in unit of % or in no unit.  However,
+    The probabilities may be given in % unit or no unit.  However,
     there is no need or way to specify the unit explicitly.
 
     The values of probabilities should sum up to 100 or 1.  If the sum is
     100, then the unit of probabilities is taken as %, and if the sum is
     1, then there is no unit.
 
-    Any element of a tuple ``params`` can tiself be a tuple, in which
-    case it must be a 2-tuple, consisting of a probability and a
-    "probability amplitude phase factor," a (real or complex) number
-    whose magnitude must be 1.
+    Any element of tuple ``params`` can itself be a tuple, in which case it
+    must be a 2-tuple, consisting of a probability and a "probability
+    amplitude phase" or simply "phase."  The phase can be taken to mean
+    angle and for this function the unit of angle is fixed as degrees.
 
-    For instance, all the following are valid inputs for ``params``.
+    Here are some basic phase values.  360 degrees, or any integer
+    multiples of 360 degrees, is the same as 0 degrees (which means a
+    positive amplitude), 180 degrees means a negative amplitude, 90 degrees
+    means multiplying the amplitude by 1j, 270 degrees means multiplying the
+    amplitude by -1j, etc.
 
-            ``(100, 0)``
-            ``(1, 0)``
-            ``((100, -1), 0)``
-            ``((50, 1j), (50, -1))``
-            ``((0.5, 1j), (0.5, -1))``
-            ``((70, np.exp(2j)), (30, -1j))``
+    For instance, all the following examples are valid inputs for ``params``
+    for a single qubit.  For refernece, corresponding list expressions are
+    also given.
 
-    In the last expression, ``import numpy as np`` is assumed to have
-    been executed already.
+    .. code-block::
+
+        (100, 0)                 : [1, 0]
+        (1, 0)                   : [1, 0]
+        ((100, 0), 0)            : [1, 0]
+        ((100, 360), 0)          : [1, 0]
+        ((100, 720), 0)          : [1, 0]
+        ((100, -360), 0)         : [1, 0]
+        ((100, 180), 0)          : [-1, 0]
+        ((50, 90), (50, 180))    : [sqrt(0.5)*1j, -sqrt(0.5)]
+        ((0.5, 90), (0.5, 180))  : [sqrt(0.5)*1j, -sqrt(0.5)]
+        ((70, 2), (30, 270))     : [sqrt(0.7)*exp(2j*pi/180), -sqrt(0.3)*1j]
 
     When going from the probability to the probability amplitude, the
-    probability will be squarer-rooted, and then the probability
-    amplitude phase factor will be multiplied to it.
+    probability will be square-rooted, and, if the phase has been given,
+    ``exp(phase * 1j * pi/180)`` will be multiplied to it.
 
-    Therefore, the probabiliy specification of ``params`` is as powerful
-    as the probabiliy amplitude specification in terms of its
-    expressiveness.
+    Thus, the probabiliy specification of ``params`` is equal in terms of its
+    expressive power as the probabiliy amplitude specification.
+
+    For example the following two circuits ``c1`` and ``c2`` are initialized
+    exactly the same way.
+
+    .. code-block::
+
+        import numpy as np
+        from qiskit import QuantumCircuit
+
+        c1 = QuantumCircuit (1)
+        c1.initialize ([1/np.sqrt(2), -1/np.sqrt(2)])
+
+        c2 = QuantumCircuit (1)
+        c2.initialize ((50, (50, 180)))
     """.strip ()
     if _initialize_orig.__doc__:
         docstr += """
@@ -53,6 +76,7 @@ that ``params`` accepts a new type of value, a tuple.
 --- The documentation for the unpatched version of this method follows. ---
 
 """ + _initialize_orig.__doc__
+    phase_arg_factor = 1j * pi / 180.
     def initialize (self, params, qubits = None): # <<<
         if isinstance (params, tuple):
             params_new = []
@@ -60,27 +84,25 @@ that ``params`` accepts a new type of value, a tuple.
             for v in params:
                 if isinstance (v, tuple):
                     pr, pf = v
-                    if not isclose (abs (pf), 1., abs_tol = _EPS):
-                        raise ValueError (f"Phase factor ({pf}) is not of "
-                                          "unit magnitude.")
+                    if not isinstance (pf, (int, float)):
+                        raise TypeError (f"Phase ({pf}) is not a real number.")
+                    pf = exp (pf * phase_arg_factor)
                 else:
                     pr = v
                     pf = 1
                 if pr < 0:
-                    if isclose (pr, 1., abs_tol = _EPS):
+                    if isclose (pr, 0., abs_tol = _EPS):
                         pr = 0
                     else:
                         raise ValueError (f"Probability ({pf}) is not "
                                           "non-negative.")
                 pr_sum += pr
                 params_new.append (sqrt (pr) * pf)
-            if isclose (pr_sum, 1., abs_tol = _EPS):
-                pass
-            elif isclose (pr_sum, 100., abs_tol = _EPS * 100):
+            if isclose (pr_sum, 100., abs_tol = _EPS * 100.):
                 params_new = list (v / 10. for v in params_new)
-            else:
-                raise ValueError ("Sum of probabilities is not equal to 1 "
-                                  "or 100 (%).")
+            elif not isclose (pr_sum, 1., abs_tol = _EPS):
+                raise ValueError ("Sum of probabilities must be equal to 100 "
+                                  "(%) or 1.")
             params = params_new
         return _initialize_orig (self, params, qubits = qubits)
     # >>>

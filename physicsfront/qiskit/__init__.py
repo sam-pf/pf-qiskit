@@ -246,19 +246,16 @@ def backends (provider = None, hub = 'ibm-q', backend = None, ** kwargs): # <<<
     """
     Yields backends.
 
-    If ``backend`` is already specified as a
-    :class:`~qiskit.providers.backend.Backend` instance, or an interable of
-    them, then they are yielded without having to use the provider
-    information, defined by ``provider`` and ``hub`` (see
-    :func:`~get_provider`).
+    Any :class:`~qiskit.providers.backend.Backend` instance, as specified as
+    the value of ``backend`` or any part of iterated values of ``backend``
+    will be left untouched and be yielded as is.  None of the arguments are
+    used in this case.
 
     If ``backend`` is left unspecified, is a string, or an iterable that
     yields a string among others, then the provider is necessasry to identify
-    and it will be obtained using ``provider`` and ``hub``.
-
-    If and when the provider is needed and its ``backends`` method is called,
-    ``kwargs`` will be passed to the method.  For example, kwargs can specify
-    a ``filters`` function.
+    and it will be obtained using ``provider`` and ``hub``.  Then, its
+    ``backends`` method is called with ``kwargs`` passed to it.  For example,
+    kwargs can specify a ``filters`` function.
 
     :param backend:  A string (backend name),
         a :class:`~qiskit.providers.backend.Backend` instance, an iterable of
@@ -294,14 +291,16 @@ def backends (provider = None, hub = 'ibm-q', backend = None, ** kwargs): # <<<
 # >>>
 def gather_counts (r, converter = None): # <<<
     """
-    Gathers counts from the run result (``r``).
+    Gathers counts from a run result (``r``).
 
     With ``converter`` unspecified, this function is just the same as
     ``r.get_counts ()``.
 
-    With ``converter`` specified, this function will look at the raw data
-    (``r.get_memory ()``) and applies ``converter`` to the raw data before
-    building the counter dictionary.
+    With ``converter`` specified, in which case it must be a callable, this
+    function will retrieve the raw data (``r.get_memory ()``) first (and so
+    the circuit/experiment must have been run with memory requested), apply
+    ``converter`` to each element of the raw data, and build the counter
+    dictionary based on the converted values.
     """
     if converter is None:
         return r.get_counts ()
@@ -310,6 +309,10 @@ def gather_counts (r, converter = None): # <<<
     return Counter (e for e in (converter (k) for k in m) if e is not None)
 # >>>
 def get_provider (provider = None, hub = 'ibm-q'): # <<<
+    """
+    If ``provider`` is not ``None``, then this function just returns it.
+    Otherwise, it will provision the provider based on ``hub``.
+    """
     if provider is None:
         from qiskit import IBMQ # pylint: disable=W0406,E0611
         provider = IBMQ.get_provider (hub = hub)

@@ -9,7 +9,7 @@ def _initialize (): # <<<
     _initialize_orig = qiskit.QuantumCircuit.initialize # pylint: disable=E1101
     docstr = """
 A patched version of :meth:`qiskit.QuantumCircuit.initialize` so
-that ``params`` accepts a new type of value, a tuple.
+that ``params`` accepts an additional type of value, a tuple.
 
     When ``params`` is a tuple, it is taken as a probability sequence
     (rather than a probability amplitude sequence expresssed as a list).

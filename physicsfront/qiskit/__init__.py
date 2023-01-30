@@ -63,10 +63,10 @@ class WiringInstruction (object): # <<<
         self._qc = qc
         self._wiring = wiring = tuple (wiring)
         for t in wiring:
-            if type (t) != tuple:
+            if not isinstance (t, tuple):
                 raise TypeError ("'wiring' must consist of tuples.")
             i, j = t
-            if type (i) != int or type (j) != int:
+            if not isinstance (i, int) or not isinstance (j, int):
                 raise TypeError ("'wiring' must consist of 2-tuples of int's.")
         self._barrier = barrier
     # >>>
@@ -100,13 +100,13 @@ class WiringInstruction (object): # <<<
         for instr in instruction:
             if not isinstance (instr, WiringInstruction):
                 assert instr
-                if type (instr) == tuple:
-                    if (len (instr) == 2 and type (instr [0]) == tuple and
-                            type (instr [1]) == dict):
+                if isinstance (instr, tuple):
+                    if (len (instr) == 2 and isinstance (instr [0], tuple) and
+                            isinstance (instr [1], dict)):
                         instr = WiringInstruction (* instr [0], ** instr [1])
                     else:
                         instr = WiringInstruction (* instr)
-                elif type (instr) == dict:
+                elif isinstance (instr, dict):
                     instr = WiringInstruction (** instr)
             instructions.append (instr)
         ans = qc0 = qc0.copy ()
@@ -283,7 +283,7 @@ def backends (provider = None, hub = 'ibm-q', backend = None, ** kwargs): # <<<
     """
     from qiskit.providers.backend import Backend # pylint: disable=E0401,E0611
     it_backends = None
-    if type (backend) == str:
+    if isinstance (backend, str):
         it_backends = [backend]
     elif isinstance (backend, Backend):
         it_backends = [backend]
@@ -295,7 +295,7 @@ def backends (provider = None, hub = 'ibm-q', backend = None, ** kwargs): # <<<
     else:
         name2backend = None
         for b in it_backends:
-            if type (b) == str:
+            if isinstance (b, str):
                 if name2backend is None:
                     # name is method in BackendV1 and property in BackendV2
                     name2backend = dict (((s (), o) if callable (s) else (s, o))
@@ -366,7 +366,7 @@ def jobs (provider = None, hub = 'ibm-q', backend = None, age = '1d', # <<<
     if 'start_datetime' not in kwargs and age:
         import datetime, dateutil
         timedelta_o = None
-        if type (age) == str:
+        if isinstance (age, str):
             if age.endswith ('d'):
                 timedelta_o = datetime.timedelta (days = float (age [:-1]))
             elif age.endswith ('h'):

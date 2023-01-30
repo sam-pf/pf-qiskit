@@ -1,3 +1,10 @@
+# 0.1.4
+> qiskit.patch of QuantumCircuit.initialize updated (tuple notation -> string(s))
+
+1. qiskit.patch updates the patch for QuantumCircuit.initialize: tuple
+   notation abandoned (collision with the unpatched method) and replace by an
+   interable strings or a string of the form '[...]', when stripped.
+
 # 0.1.3
 > qiskit.patch of QuantumCircuit.initialize updated (tuple notation)
 

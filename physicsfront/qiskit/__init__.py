@@ -306,24 +306,253 @@ def backends (provider = None, hub = 'ibm-q', backend = None, ** kwargs): # <<<
                 assert isinstance (b, Backend)
                 yield b
 # >>>
-def gather_counts (r, converter = None): # <<<
+def clbit_label_to_mii (r): # <<<
+    """
+    Given the job result ``r``, computes the mapping from the classical bit
+    label to the memory item index.
+
+    Each memory item (:meth:`~get_memory` of a job result) is a string, which
+    is filled from the _back_ in the order of the classical bits defined,
+    separated by a space whenever the register is changed.
+
+    :returns:  A :func:`dict` with ``(classical_register_name, index)`` or
+        ``classical_register_name `` as keys and the memory item index as
+        value.
+
+        There are two copies of keys ``index`` including negativer indices
+        going from ``-N`` through ``-1`` where ``N`` is the size of the
+        classical register for the name.
+
+        For all registers of length 1 (``N = 1``), and only for them,
+        ``classical_register_name`` will appear as key.
+    """
+    ans = {}
+    size = {}
+    i = 0
+    for res in r.results:
+        last_key = None
+        for name, index in res.header.clbit_labels:
+            if not index and i:
+                # starting new register
+                if last_key:
+                    # pylint: disable=E1136
+                    size [last_key [0]] = last_key [-1] + 1
+                i += 1
+            last_key = (name, index)
+            ans [last_key] = i
+            i += 1
+        if last_key:
+            size [last_key [0]] = last_key [-1] + 1
+    toextend = {}
+    for key in ans:
+        name, index = key
+        N = size [name]
+        index -= N
+        assert 0 < -index <= N
+        toextend [(name, index)] = ans [key]
+    ans.update (toextend)
+    for name in size:
+        if size [name] == 1:
+            ans [name] = ans [(name, 0)]
+    return ans
+# >>>
+# <<< def expand, tokenize (s, funcname = '_'):
+def expand ():
+    from io import StringIO
+    import re, tokenize # pylint: disable=W0621
+    TokenInfo = tokenize.TokenInfo
+    generate_tokens = tokenize.generate_tokens
+    untokenize = tokenize.untokenize
+    NAME = tokenize.NAME
+    NUMBER = tokenize.NUMBER
+    OP = tokenize.OP
+    magic_op = '|'
+    STRING = tokenize.STRING
+    pretypes = frozenset ((NAME, STRING))
+    posttypes = frozenset ((NUMBER,))
+    test_funcname = re.compile ('^[a-zA-Z_][a-z_A-Z0-9]*').match
+    test_number = re.compile ('^[0-9]+$').match
+    def getti (ti, offset):
+        lnum_s, pos_s = ti.start
+        lnum_e, pos_e = ti.end
+        if lnum_s not in offset:
+            assert lnum_e not in offset
+            return ti
+        start = lnum_s, pos_s + offset [lnum_s]
+        if lnum_e in offset:
+            end = lnum_e, pos_e + offset [lnum_e]
+        else:
+            end = lnum_e, pos_e
+        return TokenInfo (ti.type, ti.string, start, end, ti.line)
+    def _expand (s, funcname = '_'):
+        """
+        Expands string ``s`` using the 'classical bit info' notation.
+        """
+        return untokenize (_tokenize (s, funcname = funcname))
+    def _tokenize (s, funcname = '_'):
+        """
+        Like :func:`expand`, but yields :class:`~tokenize.TokenInfo`
+        instances.
+        """
+        if not test_funcname (funcname):
+            raise ValueError (f"Not a valid funcname ({funcname:!r})")
+        it = generate_tokens (StringIO (s).readline)
+        returned = []
+        def get_next ():
+            if returned:
+                return returned.pop (0)
+            else:
+                return next (it)
+        def return_ti (ti):
+            returned.insert (0, ti)
+        offset = {}
+        while True:
+            try:
+                ti = get_next ()
+            except StopIteration:
+                return
+            ti = getti (ti, offset)
+            # ti for regname must be confined in one line.
+            if not (ti.type in pretypes and ti.start [0] == ti.end [0]):
+                yield ti
+                continue
+            try:
+                ti2 = get_next ()
+            except StopIteration:
+                ti2 = None
+            # ti for regname and ti2 for magic marker must belong in one line.
+            if not (ti2 and ti2.type == OP and ti2.string == magic_op and
+                    ti2.end [0] == ti.start [0]):
+                return_ti (ti2)
+                yield ti
+                continue
+            # found a ti to expand!
+            if ti.type == STRING:
+                regname = ti.string
+            else:
+                assert ti.type == NAME
+                regname = repr (ti.string)
+            ln, i_s = ti.start
+            _, i_e = ti2.end
+            ti2 = getti (ti2, offset)
+            assert _ == ln
+            len_funcname = len (funcname)
+            i = i_s + len_funcname # i: new ending position
+            yield TokenInfo (NAME, funcname, (ln, i_s), (ln, i), '')
+            i_s, i = i, i + 1
+            yield TokenInfo (OP, '(', (ln, i_s), (ln, i), '')
+            i_s, i = i, i + len (regname)
+            yield TokenInfo (STRING, regname, (ln, i_s), (ln, i), '')
+            try:
+                ti3 = get_next ()
+            except StopIteration:
+                ti3 = None
+            doing_number = False
+            # any number postfix must along belong in the same line
+            ti4 = None
+            if ti3:
+                if ti3.end [0] == ln:
+                    if ti3.type == OP and ti3.string == '-':
+                        try:
+                            ti4 = get_next ()
+                        except StopIteration:
+                            ti4 = None
+                        doing_number = (ti4 and ti4.end [0] == ln and
+                                        ti4.type in posttypes and
+                                        test_number (ti4.string))
+                        if not doing_number:
+                            if ti4:
+                                return_ti (ti4)
+                            return_ti (ti3)
+                    else:
+                        doing_number = (ti3.type in posttypes and
+                                        test_number (ti3.string))
+                        if not doing_number:
+                            return_ti (ti3)
+                else:
+                    return_ti (ti3)
+            i_s, i = i, i + 1
+            assert i > i_e + offset.get (ln, 0)
+            offset [ln] = i - i_e
+            if doing_number:
+                yield TokenInfo (OP, ',', (ln, i_s), (ln, i), '')
+            else:
+                yield TokenInfo (OP, ')', (ln, i_s), (ln, i), '')
+                continue
+            assert ti3 or ti4
+            _, i_e = (ti4 or ti3).end
+            offset [ln] += 1
+            if ti3:
+                yield (ti3 := getti (ti3, offset))
+            if ti4:
+                yield (ti4 := getti (ti4, offset))
+            _, i_s = (ti4 or ti3).end
+            assert _ == ln
+            i = i_s + 1
+            yield TokenInfo (OP, ')', (ln, i_s), (ln, i), '')
+            assert i > i_e
+            offset [ln] = i - i_e
+    return _expand, _tokenize
+expand, tokenize = expand () # >>>
+def gather_counts (r, * clbitspec, predicate = None): # <<<
     """
     Gathers counts from a run result (``r``).
 
-    With ``converter`` unspecified, this function is just the same as
+    With ``clbitspec`` unspecified, this function is just the same as
     ``r.get_counts ()``.
 
-    With ``converter`` specified, in which case it must be a callable, this
-    function will retrieve the raw data (``r.get_memory ()``) first (and so
-    the circuit/experiment must have been run with memory requested), apply
-    ``converter`` to each element of the raw data, and build the counter
-    dictionary based on the converted values.
+    With ``clbitspec`` specified, this function will retrieve the raw data
+    (``r.get_memory ()``) first (and so the circuit/experiment must have been
+    run with memory requested), reduce each memory item by applying
+    index/indices defined by ``clbitspec`` (see :func:`memory_item_index`),
+    and build the counter dictionary based on the reduced items.
     """
-    if converter is None:
+    if not clbitspec and not predicate:
         return r.get_counts ()
+    if predicate:
+        assert isinstance (predicate, str)
+        regname2index = {}
+        namespace = {}
+        def _taker (regname, index = None): # requires x to be a memory item
+            if index is None:
+                key = regname
+            else:
+                key = (regname, index)
+            if key not in regname2index:
+                regname2index [key] = memory_item_index (r, key)
+            return take (namespace ['x'], regname2index [key])
+        code = compile (expand (predicate), '<predicate>', 'eval')
+        def predicate_f (x): 
+            namespace ['x'] = x
+            namespace ['_'] = _taker
+            return eval (code, namespace, namespace)
+    else:
+        predicate_f = None
+    def take (k, i):
+        ans = k [i]
+        assert ans != ' '
+        return ans
+    if clbitspec:
+        indices = memory_item_index (r, * clbitspec)
+        if len (clbitspec) == 1:
+            assert isinstance (indices, int)
+            indices = tuple (indices)
+        assert isinstance (indices, tuple)
+    else:
+        indices = None
     m = r.get_memory ()
     from collections import Counter
-    return Counter (e for e in (converter (k) for k in m) if e is not None)
+    joinstr = ''.join
+    if predicate_f:
+        if indices is None:
+            it = (k for k in m if predicate_f (k))
+        else:
+            it = (joinstr (take (k, i) for i in indices) for k in m
+                  if predicate_f (k))
+    else:
+        assert indices is not None
+        it = (joinstr (take (k, i) for i in indices) for k in m)
+    return Counter (it)
 # >>>
 def get_provider (provider = None, hub = 'ibm-q'): # <<<
     """
@@ -379,6 +608,45 @@ def jobs (provider = None, hub = 'ibm-q', backend = None, age = '1d', # <<<
     for b in backends (provider = provider, hub = hub, backend = backend):
         for j in b.jobs (** kwargs):
             yield j
+# >>>
+def memory_item_index (r, * clbitspec): # <<<
+    """
+    Given a job result ``r`` and classical bit spec(s) ``clbitspec``, returns
+    the corresponding memory item index/indices.
+
+    If only one ``clbitspec`` is given, then an index will be returned.  If
+    more than one ``clbitspec`` are given, then a tuple of indices will be
+    returned.
+
+    :param clbitspec:  Either a 2-tuple ``(clreg_name, incdex)`` or just
+        ``clreg_name`` (if the length of the register is 1).
+    """
+    if not clbitspec:
+        raise ValueError ("At least one classical bit specification "
+                          "(clbitspec) must be provided.")
+    clabel2index = clbit_label_to_mii (r)
+    regnames = set (key [0] if isinstance (key, tuple) else key
+                    for key in clabel2index)
+    ans = []
+    for spec in clbitspec:
+        if isinstance (spec, tuple):
+            name, index = spec
+            key_is_tuple = True
+        else:
+            name = spec
+            key_is_tuple = False
+        regname = None
+        if name in regnames:
+            regname = name
+        else:
+            cands = list (regname for regname in regnames if name in regname)
+            if len (cands) != 1:
+                raise ValueError (f'Name {name!r} does not complete a '
+                                  'classical bit register name (uniquely).')
+            regname = cands [0]
+        ans.append (clabel2index [(regname, index) if key_is_tuple
+                                  else regname])
+    return ans [0] if len (ans) == 1 else tuple (ans)
 # >>>
 def run_quantum (qc, hub = 'ibm-q', shots = 2000, memory = True, # <<<
                  qasm3 = False, backend = None, quiet = False):

@@ -366,7 +366,7 @@ def expand ():
     NAME = tokenize.NAME
     NUMBER = tokenize.NUMBER
     OP = tokenize.OP
-    magic_op = '|'
+    magic_ops = frozenset (('|', '@'))
     STRING = tokenize.STRING
     pretypes = frozenset ((NAME, STRING))
     posttypes = frozenset ((NUMBER,))
@@ -421,7 +421,7 @@ def expand ():
             except StopIteration:
                 ti2 = None
             # ti for regname and ti2 for magic marker must belong in one line.
-            if not (ti2 and ti2.type == OP and ti2.string == magic_op and
+            if not (ti2 and ti2.type == OP and ti2.string in magic_ops and
                     ti2.end [0] == ti.start [0]):
                 return_ti (ti2)
                 yield ti

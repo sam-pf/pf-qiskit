@@ -387,6 +387,26 @@ def expand ():
     def _expand (s, funcname = '_'):
         """
         Expands string ``s`` using the 'classical bit info' notation.
+
+        This notation is defined as follows.
+
+            <name>|[<index>]
+            <name>@[<index>]
+
+        As indicated, <index> is optional.  The classical bit specification
+        (as accepted by :func:`memory_item_index`) is defined from this
+        notation as <name> if <index> is not given or (<name>, <index>) if
+        <index> is given.
+
+        Note that <name> can be a bare string or a quoted string (if name
+        contains tricky characters).
+
+        The symbols | and @ are completely equivalent, and there can be any
+        spaces (but no line breaks) around either of them in the above
+        notation.
+
+        Lastly, the above notation must be contained in a single line, i.e.,
+        it cannot be split into multiple lines.
         """
         return untokenize (_tokenize (s, funcname = funcname))
     def _tokenize (s, funcname = '_'):
@@ -506,6 +526,10 @@ def gather_counts (r, * clbitspec, predicate = None): # <<<
     run with memory requested), reduce each memory item by applying
     index/indices defined by ``clbitspec`` (see :func:`memory_item_index`),
     and build the counter dictionary based on the reduced items.
+
+    :param predicate:  If given, then this argument must pass a string value,
+        which is expanded using :func:`expand` according to the classical bit
+        info notation as accepted by that function and :func:`tokenize`.
     """
     if not clbitspec and not predicate:
         return r.get_counts ()
@@ -618,8 +642,9 @@ def memory_item_index (r, * clbitspec): # <<<
     more than one ``clbitspec`` are given, then a tuple of indices will be
     returned.
 
-    :param clbitspec:  Either a 2-tuple ``(clreg_name, incdex)`` or just
-        ``clreg_name`` (if the length of the register is 1).
+    :param clbitspec:  Either a 2-tuple ``(clreg_name, index)`` (where
+        ``index`` may be negative) or just ``clreg_name`` (if the length of
+        the register is 1).
     """
     if not clbitspec:
         raise ValueError ("At least one classical bit specification "
@@ -648,8 +673,8 @@ def memory_item_index (r, * clbitspec): # <<<
                                   else regname])
     return ans [0] if len (ans) == 1 else tuple (ans)
 # >>>
-def run_quantum (qc, hub = 'ibm-q', shots = 2000, memory = True, # <<<
-                 qasm3 = False, backend = None, quiet = False):
+def run_quantum_computer (qc, hub = 'ibm-q', shots = 2000, memory = True, # <<<
+                          qasm3 = False, backend = None, quiet = False):
     """
     Runs a real quantum computer on quantum circuit ``qc``.
 

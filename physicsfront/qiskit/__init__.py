@@ -343,6 +343,11 @@ def clbit_label_to_mii (r): # <<<
             i += 1
         if last_key:
             size [last_key [0]] = last_key [-1] + 1
+    N = i
+    if N:
+        N -= 1
+        for key in ans:
+            ans [key] = N - ans [key]
     toextend = {}
     for key in ans:
         name, index = key
@@ -514,7 +519,7 @@ def expand ():
             offset [ln] = i - i_e
     return _expand, _tokenize
 expand, tokenize = expand () # >>>
-def gather_counts (r, * clbitspec, predicate = None): # <<<
+def gather_counts (r, * clbitspec, predicate = None, keys = None): # <<<
     """
     Gathers counts from a run result (``r``).
 
@@ -530,6 +535,17 @@ def gather_counts (r, * clbitspec, predicate = None): # <<<
     :param predicate:  If given, then this argument must pass a string value,
         which is expanded using :func:`expand` according to the classical bit
         info notation as accepted by that function and :func:`tokenize`.
+
+    :param keys:  If given, then the :class:`~collections.Counter` instance
+        will be updated with this argument as follows.
+
+        If the value of this argument is a mapping, then the counter will be
+        updated with this mapping at the end, i.e., with the counts cumulated
+        while new keys will be added as necessary.
+
+        Any other value must be an iterable of keys, in which case the keys
+        will be made sure to exist (with zero count).  This is equivalent to
+        passing a mapping argument with these keys and all values 0.
     """
     if not clbitspec and not predicate:
         return r.get_counts ()
@@ -566,6 +582,7 @@ def gather_counts (r, * clbitspec, predicate = None): # <<<
         indices = None
     m = r.get_memory ()
     from collections import Counter
+    from collections.abc import Mapping
     joinstr = ''.join
     if predicate_f:
         if indices is None:
@@ -576,7 +593,12 @@ def gather_counts (r, * clbitspec, predicate = None): # <<<
     else:
         assert indices is not None
         it = (joinstr (take (k, i) for i in indices) for k in m)
-    return Counter (it)
+    ans = Counter (it)
+    if keys:
+        if not isinstance (keys, Mapping):
+            keys = dict ((k, 0) for k in keys)
+        ans.update (keys)
+    return ans
 # >>>
 def get_provider (provider = None, hub = 'ibm-q'): # <<<
     """

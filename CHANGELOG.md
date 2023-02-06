@@ -1,3 +1,11 @@
+# 0.1.5
+> predicate based on classical bit info notation
+
+1. physicsfront.qiskit.gather_counts: new argument 'keys'
+1. Classical bit info notation used in the predicate argument for expand.
+1. New functions in physicsfront.qiskit: clbit_label_to_mii, expand,
+   tokenize, memory_item_index
+
 # 0.1.4
 > qiskit.patch of QuantumCircuit.initialize updated (tuple notation -> string(s))
 

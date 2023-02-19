@@ -748,7 +748,7 @@ def run_quantum_simulator (qc, shots = 2000, memory = True, seed = 100): # <<<
     """
     Runs an Aer quantum simulator on the quantum circuit ``qc``.
 
-    See :func:`run_quantum` for how to process the run result.
+    See :func:`run_quantum_computer` for how to process the run result.
 
     In a simulator run, it is also possible to do
 

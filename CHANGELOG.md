@@ -1,3 +1,9 @@
+# 0.1.5-post1
+> 0.1.5 + bug fix
+
+1. colab.init: prepare setup folder if it does not exist already in all
+   scenarios.
+
 # 0.1.5
 > predicate based on classical bit info notation
 

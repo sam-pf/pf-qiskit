@@ -54,12 +54,12 @@ def _check_setup_file (kind, fallback_filename = None): # <<<
     setup_file = os.path.join (setup_dir, filename)
     if os.path.exists (setup_file):
         return (setup_file, setup_file)
+    if not os.path.exists (setup_dir):
+        os.mkdir (setup_dir)
     if fallback_filename:
         #print (fallback_filename, '...', end = ' ')
         fallback_filename = _correct_filename (fallback_filename)
         #print (fallback_filename)
-        if not os.path.exists (setup_dir):
-            os.mkdir (setup_dir)
         if shutil.copy2 (fallback_filename, setup_file):
             return (setup_file, fallback_filename)
     return (setup_file, False)

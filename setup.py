@@ -22,7 +22,7 @@ project_urls = {
     'GitHub': url,
     # potential useful keys: 'Documentation', 'ChangeLog', 'Issues', ...
 }
-version = "0.1.5-post1"
+version = "0.1.5.post1"
 license_ = "Apache 2.0"
 description = "Utility package for qiskit"
 long_description = "This package provides modules such as physicsfront.qiskit and physicsfront.qiskit.colab.  These modules can be used to aid the usage of qiskit in various environments, e.g., in the Google Colab environment."
@@ -33,25 +33,13 @@ long_description = "This package provides modules such as physicsfront.qiskit an
 # 'Development Status :: 5 - Production/Stable'
 release_status = 'Development Status :: 3 - Alpha'
 
-##
-# These requirements are rough values determined from limited test runs in
-# google colab as well as terminal based ipython.
-##
-dependencies = [
-    "qiskit >= 0.39.2",
-]
-extras = {
-    "mpl": [
-        "matplotlib >= 3.2.2",
-        "pylatexenc >= 2.10",
-    ],
-    "ibm-provider": [
-        "qiskit_ibm_provider >= 0.1.0",
-    ],
-}
-python_requires = ">=3.8"
+import io, os, setuptools, sys
 
-import os, setuptools, sys
+# dependencies, extras, python_requires
+exec (io.open (os.path.join (os.path.split (__file__)[0],
+                             'physicsfront', 'qiskit', '_requires.py'),
+               mode = 'r', encoding = 'utf-8').read (),
+      globals ())
 
 packages = setuptools.find_namespace_packages (include = ['physicsfront.*'])
 
@@ -73,7 +61,7 @@ namespaces = ["physicsfront"]
 try:
     _do_setup # pylint: disable=E0601
 except:
-    _do_setup = True
+    _do_setup = __name__ == '__main__'
 
 if _do_setup and __name__ == '__main__' and os.environ.get ('PYARUNNING'):
     # 'PYARUNNING' set with any non-empty value? take it as 'pdf dev cycle'.
@@ -84,39 +72,41 @@ if _do_setup and __name__ == '__main__' and os.environ.get ('PYARUNNING'):
         # invocation by falling back to 'check'.
         ##
         sys.argv.append ('check')
-
 # >>>
 
-if _do_setup: setuptools.setup (
-    name = name,
-    version = version,
-    description = description,
-    long_description = long_description,
-    author = author,
-    author_email = author_email,
-    license = license_,
-    url = url,
-    project_urls = project_urls,
-    classifiers = [
-        release_status,
-        "Intended Audience :: Developers",
-        "Intended Audience :: Education",
-        "License :: OSI Approved :: Apache Software License",
-        "Programming Language :: Python",
-        "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.8",
-        "Programming Language :: Python :: 3.9",
-        "Programming Language :: Python :: 3.10",
-        "Programming Language :: Python :: 3.11",
-        "Operating System :: OS Independent",
-        "Topic :: Internet",
-        "Topic :: Scientific/Engineering :: Physics",
-        "Topic :: Security :: Cryptography",
-    ],
-    platforms = "Posix; MacOS X; Windows",
-    packages = packages,
-    namespace_packages = namespaces,
-    install_requires = dependencies,
-    extras_require = extras,
-    python_requires = python_requires,
-)
+if _do_setup:
+    import pkg_resources
+    for name in namespaces:
+        pkg_resources.declare_namespace (name)
+    setuptools.setup (
+        name = name,
+        version = version,
+        description = description,
+        long_description = long_description,
+        author = author,
+        author_email = author_email,
+        license = license_,
+        url = url,
+        project_urls = project_urls,
+        classifiers = [
+            release_status,
+            "Intended Audience :: Developers",
+            "Intended Audience :: Education",
+            "License :: OSI Approved :: Apache Software License",
+            "Programming Language :: Python",
+            "Programming Language :: Python :: 3",
+            "Programming Language :: Python :: 3.8",
+            "Programming Language :: Python :: 3.9",
+            "Programming Language :: Python :: 3.10",
+            "Programming Language :: Python :: 3.11",
+            "Operating System :: OS Independent",
+            "Topic :: Internet",
+            "Topic :: Scientific/Engineering :: Physics",
+            "Topic :: Security :: Cryptography",
+        ],
+        platforms = "Posix; MacOS X; Windows",
+        packages = packages,
+        install_requires = dependencies, # pylint: disable=E0602
+        extras_require = extras, # pylint: disable=E0602
+        python_requires = python_requires, # pylint: disable=E0602
+    )

@@ -14,7 +14,21 @@
 # limitations under the License.
 ##
 
-PIP_PKGS_TO_INSTALL = ('qiskit', 'qiskit_ibm_provider', 'matplotlib', 'pylatexenc')
+import os, io
+
+##
+# PIP_PKGS_TO_INSTALL: collect all packages from _requires.py (including
+#   extras; as colab needs all) into a tuple.
+##
+with io.open (os.path.join (os.path.split (__file__) [0], '_requires.py'),
+              'r', encoding = 'utf-8') as _:
+    PIP_PKGS_TO_INSTALL = {}
+    exec (_.read (), PIP_PKGS_TO_INSTALL)
+    PIP_PKGS_TO_INSTALL = (list (PIP_PKGS_TO_INSTALL ['dependencies']) +
+        sum ((list (l) for l
+              in PIP_PKGS_TO_INSTALL.get ('extras', {}).values ()), []))
+    PIP_PKGS_TO_INSTALL = tuple (w.replace (' ', '')
+                                for w in PIP_PKGS_TO_INSTALL)
 
 def _check_setup_file (kind, fallback_filename = None): # <<<
     """
@@ -42,7 +56,7 @@ def _check_setup_file (kind, fallback_filename = None): # <<<
         If this name is given, then it will be replaced by the value returned
         by :func:`_correct_filename`.
     """
-    import os.path, shutil
+    import shutil
     setup_dir = os.path.join (os.path.expandvars ('$HOME'), '.qiskit')
     if kind == 'rc':
         filename = 'qiskitrc'
@@ -89,7 +103,6 @@ def _correct_filename (filename): # <<<
     #. There is one unique file found with its name = ``filename`` +
        extension (which cannot have another '.').
     """
-    import os.path
     if os.path.exists (filename):
         return filename
     dname, fname = os.path.split (filename)
@@ -101,15 +114,8 @@ def _correct_filename (filename): # <<<
         return filename
     return os.path.join (dname, cands [0])
 # >>>
-def _install_pip_packages (reload = False, quiet = False): # <<<
+def _install_pip_packages (reload = False, quiet = False): # <<< # pylint: disable=W0613
     import subprocess, sys
-    if 'qiskit' in sys.modules and not reload:
-        if not quiet:
-            print ("== Installing/checking needed pip packages: aborted since "
-                   "qiskit has already been imported and reload was not "
-                   "requested.\n"
-                   "   Restart runtime if you wish to restart everything anew.")
-        return
     pkgs = list (PIP_PKGS_TO_INSTALL)
     if not quiet:
         print ("== Installing/checking needed pip packages:", pkgs,
@@ -124,7 +130,7 @@ def _install_pip_packages (reload = False, quiet = False): # <<<
         print ("\r", end = '')
     print ("** Error while installing required pip packages:", pkgs)
     print (r.stderr.decode ('utf-8'))
-    raise Exception ("pip returned error %d" % (rv,))
+    raise SystemError ("pip returned error %d" % (rv,))
 # >>>
 def _setup_account (reload = False, quiet = False, filename = None): # <<<
     from qiskit import IBMQ # pylint: disable=E0611
@@ -143,7 +149,7 @@ def _setup_account (reload = False, quiet = False, filename = None): # <<<
         IBMQ.load_account ()
     else:
         old_token = d ['token'] if d else ''
-        import IPython
+        import IPython # pylint: disable=E0401
         display = IPython.display.display
         from google.colab import output # pylint: disable=E0401,E0611
         display (IPython.display.Javascript (f'window._key = "{old_token}"'))
@@ -156,7 +162,7 @@ window._key = prompt ("Please enter your IBMQ API TOKEN:", window._key)
         IBMQ.enable_account (token)
     d = IBMQ.active_account ()
     if not d:
-        raise Exception ("Failed to set up an IBMQ account.")
+        raise Exception ("Failed to set up an IBMQ account.") # pylint: disable=W0719
     jsonfilename, rv = _check_setup_file ('json')
     if not rv:
         jsonobj = {
@@ -173,7 +179,6 @@ window._key = prompt ("Please enter your IBMQ API TOKEN:", window._key)
         print ("OK!")
 # >>>
 def _setup_settings (reload = False, quiet = False, filename = None): # <<<
-    import io
     if not quiet:
         print ("== Qiskit settings file check ...", end = ' ', flush = True)
     setupfname, rv = _check_setup_file ('conf', fallback_filename = filename)

@@ -18,7 +18,12 @@ from . import colab
 try:
     from . import patch
 except ModuleNotFoundError:
-    # e.g., if qiskit is not available yet (in colab)
+    ##
+    # If IBM qiskit is not available yet, then the patching won't work.  In
+    # such a case, the patching must be done manually by importing patch
+    # again after qiskit is installed.  For example, colab.init includes
+    # importing patch.
+    ##
     pass
 
 class WiringInstruction (object): # <<<

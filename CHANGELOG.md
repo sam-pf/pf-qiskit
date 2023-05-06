@@ -1,8 +1,11 @@
-# 0.1.5-post1
-> 0.1.5 + bug fix
+# 0.1.6
+> colab.init bug fix + pip requirements enhancement
 
 1. colab.init: prepare setup folder if it does not exist already in all
    scenarios.
+1. The requirements for pip packages is defined in _requires.py, which
+   both colab.py and setup.py use for computing the exact list of
+   required or optional pip packages.
 
 # 0.1.5
 > predicate based on classical bit info notation

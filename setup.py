@@ -22,7 +22,7 @@ project_urls = {
     'GitHub': url,
     # potential useful keys: 'Documentation', 'ChangeLog', 'Issues', ...
 }
-version = "0.1.5.post1"
+version = "0.1.6"
 license_ = "Apache 2.0"
 description = "Utility package for qiskit"
 long_description = "This package provides modules such as physicsfront.qiskit and physicsfront.qiskit.colab.  These modules can be used to aid the usage of qiskit in various environments, e.g., in the Google Colab environment."

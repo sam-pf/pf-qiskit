@@ -21,14 +21,12 @@
 ##
 dependencies = [
     "qiskit >= 0.39.2",
+    "qiskit_ibm_provider >= 0.1.0",
 ]
 extras = {
     "mpl": [
         "matplotlib >= 3.2.2",
         "pylatexenc >= 2.10",
-    ],
-    "ibm-provider": [
-        "qiskit_ibm_provider >= 0.1.0",
     ],
 }
 python_requires = ">=3.8"

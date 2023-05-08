@@ -190,7 +190,7 @@ window._key = prompt ("Please enter your IBM Quantum API TOKEN:", window._key)
     if not provider:
         raise Exception ("Failed to set up an IBM Quantum provider.") # pylint: disable=W0719
     if not rv:
-        provider.save_account ()
+        provider.save_account (** provider.active_account ())
     if not quiet:
         print ("OK!")
 # >>>

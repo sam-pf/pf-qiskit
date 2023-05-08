@@ -76,8 +76,8 @@ if _do_setup and __name__ == '__main__' and os.environ.get ('PYARUNNING'):
 
 if _do_setup:
     import pkg_resources
-    for name in namespaces:
-        pkg_resources.declare_namespace (name)
+    for _ in namespaces:
+        pkg_resources.declare_namespace (_)
     setuptools.setup (
         name = name,
         version = version,

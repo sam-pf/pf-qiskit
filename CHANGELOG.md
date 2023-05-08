@@ -1,4 +1,4 @@
-# 0.1.6
+# 0.1.6.1
 > colab.init bug fix, pip requirements enhancement, migration to qiskit_ibm_provider
 
 1. colab.init: prepare setup folder if it does not exist already in all

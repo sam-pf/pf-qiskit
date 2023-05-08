@@ -1,11 +1,13 @@
 # 0.1.6
-> colab.init bug fix + pip requirements enhancement
+> colab.init bug fix, pip requirements enhancement, migration to qiskit_ibm_provider
 
 1. colab.init: prepare setup folder if it does not exist already in all
    scenarios.
 1. The requirements for pip packages is defined in _requires.py, which
    both colab.py and setup.py use for computing the exact list of
    required or optional pip packages.
+1. Migrated fully to qiskit_ibm_provider (old provider or job object still
+   recognized and accepted, if it happens to appear in code).
 
 # 0.1.5
 > predicate based on classical bit info notation

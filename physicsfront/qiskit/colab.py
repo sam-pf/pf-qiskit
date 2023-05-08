@@ -190,7 +190,9 @@ window._key = prompt ("Please enter your IBM Quantum API TOKEN:", window._key)
     if not provider:
         raise Exception ("Failed to set up an IBM Quantum provider.") # pylint: disable=W0719
     if not rv:
-        provider.save_account (** provider.active_account ())
+        dargs = provider.active_account ()
+        dargs.pop ('channel', None)
+        provider.save_account (** dargs)
     if not quiet:
         print ("OK!")
 # >>>

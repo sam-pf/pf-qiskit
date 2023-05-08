@@ -32,29 +32,42 @@ with io.open (os.path.join (os.path.split (__file__) [0], '_requires.py'),
 
 def _check_setup_file (kind, fallback_filename = None): # <<<
     """
-    Checks the qiskitrc or settings file and returns that file name.
+    Checks, or creates, a qiskit setup file of the given kind.
+
+    If the file does not exist and if ``fallback_filename`` has been given,
+    then the file is created by copying ``fallback_filename``.
 
     :returns:  ``(setup_filename, status)``
 
-        ``setup_filename`` is the setup file name that will be read by
-        qiskit.
+        ``setup_filename`` is the name of the setup file that qiskit will
+        read.
 
-        ``status`` is false if ``setup_filename`` does not exist.
+        ``status`` would be false if checking or creating the setup file
+        failed.
 
-        If ``status`` is true, it will be either ``setup_filename`` or
-        ``fallback_filename``.
+        If ``status`` is true, it will be either ``setup_filename`` (if it
+        existed already) or ``fallback_filename`` (it it was copied from
+        fallback).
 
-    :param kind:  'rc', 'conf', or 'json'
+    :param kind:  'json', 'conf', or 'rc'
 
-        The corresponding file names are respectively 'qiskitrc',
-        'settings.conf', and 'qiskit-ibm.json'.
+        The corresponding file name is respectively  'qiskit-ibm.json',
+        'settings.conf', and 'qiskitrc'.
+
+        Consider the 'rc' kind as deprecated since the 'rc' setup file is
+        read by qiskit.providers or qiskit.IBMQ, both of which are deprecated
+        modules.  The new module to use is qiskit_ibm_provider, which uses
+        the 'json' kind for account information.
 
     :param fallback_filename:  If the file does not exist and this
-        filename is given, then this file will be copied to the setup file,
-        before fallback_filename is returned.
+        filename is given, then this file will be copied to the setup file.
 
-        If this name is given, then it will be replaced by the value returned
-        by :func:`_correct_filename`.
+        The name may be subject to a correction by :func:`_correct_filename`
+        (for internal technical reasons related to file system matters,
+        basically).
+
+        When this name was utilized, then the ``status`` value in the return
+        tuple will be this name (possibly corrected).
     """
     import shutil
     setup_dir = os.path.join (os.path.expandvars ('$HOME'), '.qiskit')
@@ -132,49 +145,52 @@ def _install_pip_packages (reload = False, quiet = False): # <<< # pylint: disab
     print (r.stderr.decode ('utf-8'))
     raise SystemError ("pip returned error %d" % (rv,))
 # >>>
-def _setup_account (reload = False, quiet = False, filename = None): # <<<
-    from qiskit import IBMQ # pylint: disable=E0611
+def _setup_account (reload = False, instance = None, quiet = False, # <<<
+                    filename = None):
+    """
+    :param filename:  Used as ``fallback_filename`` when checking the account
+        setup file.
+    """
+    ##
+    # The method that involves
+    # qiskit.IBMQ.{active_account,disable_account,load_account} has been
+    # deprecated.  As of 2023-05-07, it has been noted that the jobs executed
+    # in the last couple of days do not show up, if the job query is made
+    # from the deprecated provider.  They do show up if the job query is made
+    # from a provider of new type, which is recommended for use.  So, it is
+    # time to move on to the new style.
+    ##
     if not quiet:
         print ("== Account setup (you might be prompted for an API TOKEN) ...",
                end = ' ', flush = True)
-    d = IBMQ.active_account ()
-    if d and not reload:
+    from . import get_provider
+    provider = get_provider (provider = 'cached', instance = instance)
+    if provider and not reload:
         if not quiet:
             print ("OK! (account already active; reload not requested)\n"
-                   "   Restart runtime if you wish to restart everything anew.")
+                "   Restart runtime if you wish to restart everything anew.")
         return
-    _, rv = _check_setup_file ('rc', fallback_filename = filename)
-    if reload: IBMQ.disable_account ()
+    _, rv = _check_setup_file ('json', fallback_filename = filename)
     if rv:
-        IBMQ.load_account ()
+        provider = get_provider (provider = 'renew' if reload else None,
+                                 instance = instance)
     else:
-        old_token = d ['token'] if d else ''
+        old_token = '' # d ['token'] if d else ''
         import IPython # pylint: disable=E0401
         display = IPython.display.display
         from google.colab import output # pylint: disable=E0401,E0611
         display (IPython.display.Javascript (f'window._key = "{old_token}"'))
         display (IPython.display.Javascript ('''
-window._key = prompt ("Please enter your IBMQ API TOKEN:", window._key)
+window._key = prompt ("Please enter your IBM Quantum API TOKEN:", window._key)
         '''))
         token = output.eval_js ('_key')
         # for safety; even if javascript is sandboxed per cell
         output.eval_js ('delete window._key')
-        IBMQ.enable_account (token)
-    d = IBMQ.active_account ()
-    if not d:
-        raise Exception ("Failed to set up an IBMQ account.") # pylint: disable=W0719
-    jsonfilename, rv = _check_setup_file ('json')
+        provider = get_provider (token = token, instance = instance)
+    if not provider:
+        raise Exception ("Failed to set up an IBM Quantum provider.") # pylint: disable=W0719
     if not rv:
-        jsonobj = {
-            'default-ibm-quantum': {
-                'channel': 'ibm_quantum',
-                'token': d ['token'],
-                'url': d.get ('url',
-                              'https://auth.quantum-computing.ibm.com/api'),
-            },
-        }
-        import json
-        json.dump (jsonobj, open (jsonfilename, 'w', encoding = 'utf-8'))
+        provider.save_account ()
     if not quiet:
         print ("OK!")
 # >>>
@@ -201,11 +217,11 @@ circuit_drawer = mpl
         print ("OK! (" + msg + ")")
 # >>>
 
-def init (reload = False, quiet = False, qiskitrc_filename = None,
-          settings_filename = None):
+def init (reload = False, quiet = False, json_filename = None,
+          conf_filename = None):
     _install_pip_packages (reload = reload, quiet = quiet)
     _setup_settings (reload = reload, quiet = quiet,
-                     filename = settings_filename)
+                     filename = conf_filename)
     _setup_account (reload = reload, quiet = quiet,
-                    filename = qiskitrc_filename)
+                    filename = json_filename)
     from . import patch as _

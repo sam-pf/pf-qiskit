@@ -264,51 +264,64 @@ class WiringInstruction (object): # <<<
 
 # >>>
 
-def backends (provider = None, hub = 'ibm-q', backend = None, ** kwargs): # <<<
+def backends (backend = None, provider = None, instance = None, # <<<
+              ** kwargs):
     """
-    Yields backends.
+    Yields backend instances given the information in the arguments.
 
-    Any :class:`~qiskit.providers.backend.Backend` instance, as specified as
-    the value of ``backend`` or any part of iterated values of ``backend``
-    will be left untouched and be yielded as is.  None of the arguments are
-    used in this case.
+    Any backend instance (of type
+    :class:`~qiskit_ibm_provider.ibm_backend.IBMBackend` or
+    :class:`~qiskit.providers.backend.Backend` instance), specified as the
+    value of ``backend`` or as an iterated value of an iterable ``backend``,
+    would be left untouched: such a backend instance would be yielded as is.
+
+    The rest of arguments are used only if there are any backends left to be
+    found.
 
     If ``backend`` is left unspecified, is a string, or an iterable that
-    yields a string among others, then the provider is necessasry to identify
-    and it will be obtained using ``provider`` and ``hub``.  Then, its
-    ``backends`` method is called with ``kwargs`` passed to it.  For example,
-    kwargs can specify a ``filters`` function.
+    yields string, then arguments ``provider`` and ``instance`` are used
+    together to identify the provider (see :func:`get_provider`).  Then the
+    backends method of this provider is called with ``** kwargs`` to find
+    backends.  For example, ``kwargs`` can specify a ``filters`` function.
 
-    :param backend:  A string (backend name),
-        a :class:`~qiskit.providers.backend.Backend` instance, an iterable of
-        them, or ``None``.
+
+    :param backend:  A string (backend name), a backend instance, an iterable
+        of strings or backend instances, or ``None``.
 
         The default value ``None`` means all backends for the provider,
-        specified by ``provider`` and ``hub`` (see :func:`~get_provider`).
+        specified by ``provider`` and ``instance``.
     """
-    from qiskit.providers.backend import Backend # pylint: disable=E0401,E0611
+    from qiskit_ibm_provider.ibm_backend import IBMBackend # new
+    from qiskit.providers.backend import Backend # old (deprecated) # pylint: disable=E0611,E0401
+    classes = (IBMBackend, Backend)
     it_backends = None
     if isinstance (backend, str):
         it_backends = [backend]
-    elif isinstance (backend, Backend):
+    elif isinstance (backend, classes):
         it_backends = [backend]
     elif backend is not None:
         it_backends = backend
     if it_backends is None:
-        for b in get_provider (provider = provider, hub = hub).backends (** kwargs):
+        for b in (get_provider (provider = provider, instance = instance)
+                  .backends (** kwargs)):
             yield b
     else:
         name2backend = None
         for b in it_backends:
             if isinstance (b, str):
                 if name2backend is None:
-                    # name is method in BackendV1 and property in BackendV2
-                    name2backend = dict (((s (), o) if callable (s) else (s, o))
+                    ##
+                    # name is a property/attribute for IBMBackend/BackendV2
+                    # and is a method in BackendV1
+                    ##
+                    name2backend = dict (((s (), o) if callable (s) else
+                                          (s, o))
                         for (s, o) in ((o.name, o) for o in get_provider
-                        (provider = provider, hub = hub).backends (** kwargs)))
+                        (provider = provider, instance = instance)
+                        .backends (** kwargs)))
                 yield name2backend [b]
             else:
-                assert isinstance (b, Backend)
+                assert isinstance (b, classes)
                 yield b
 # >>>
 def clbit_label_to_mii (r): # <<<
@@ -605,32 +618,96 @@ def gather_counts (r, * clbitspec, predicate = None, keys = None): # <<<
         ans.update (keys)
     return ans
 # >>>
-def get_provider (provider = None, hub = 'ibm-q'): # <<<
+def get_provider (): # <<<
+    _cached = None
+    def _get_provider (provider = None, token = None, instance = None):
+        """
+        Returns a provider instance based on the information given.
+
+        1. If ``provider`` is given a provider instance (of type IBMProvider
+           or AccountProvider, the latter of which is deprecated), then it is
+           returned as is.
+
+           In this case, no cache mechanism is used.
+
+        2. If ``provider`` is any other value, it must be one of the
+           following values.
+
+                ``None``, ``"cached"``, ``"renew"``
+
+           In this case, a cache mechanism will kick into action.
+
+           First, even if the cache value exists, it is accepted only it is
+           valid.  The cached value is valid if the values for ``token`` and
+           ``instance`` of its active account are equal to the passed values,
+           if any, of ``token`` and ``instance`` arguments.
+
+           If ``provider`` is passed ``"cached"``, then any valid cached
+           provider value or ``None`` will be returned immediately.  This is
+           simply a check on the cached value.  The return value would be
+           either ``None`` or an IBMProvider instance.
+
+           If ``provider`` is passed ``"renew"``, then any cached value will
+           be expunged first.
+
+           If ``provider`` is ``None``, then any valid cached value will be
+           kept.
+
+           In the latter two cases, a new cache value will be provisioned if
+           a valid cached value is not found or has just been expunged.  Then
+           the new cached value, of type IBMProvider, will be returned.
+        """
+        ##
+        # These import statements can't be put outside this function, since
+        # colab.init must be loaded first to install these modules in the
+        # first place!
+        ##
+        from qiskit_ibm_provider.ibm_provider import IBMProvider
+        from qiskit.providers.ibmq.accountprovider import AccountProvider # pylint: disable=E0611,E0401
+        classes = (IBMProvider, AccountProvider)
+        from qiskit_ibm_provider import IBMProvider # pylint: disable=W0404
+        if isinstance (provider, classes):
+            return provider
+        nonlocal _cached
+        if provider == 'renew':
+            provider = _cached = None
+        has_cache_value = _cached is not None
+        if has_cache_value:
+            assert isinstance (_cached, classes [0])
+        has_valid_cache_value = (has_cache_value and
+            (token is None or
+             _cached.active_account () ['token'] == token) and
+            (instance is None or
+             _cached.active_account () ['instance'] == instance))
+        if provider == 'cached':
+            return _cached if has_valid_cache_value else None
+        if provider is not None:
+            raise ValueError ("** Invalid value passed for provider "
+                              f"argument: {provider}")
+        if not has_valid_cache_value:
+            _cached = IBMProvider (token = token, instance = instance)
+        assert isinstance (_cached, classes [0])
+        return _cached
+    return _get_provider
+get_provider = get_provider ()
+# >>>
+def jobs (provider = None, instance = None, age = '1d', ** kwargs): # <<<
     """
-    If ``provider`` is not ``None``, then this function just returns it.
-    Otherwise, it will provision the provider based on ``hub``.
-    """
-    if provider is None:
-        from qiskit import IBMQ # pylint: disable=W0406,E0611
-        provider = IBMQ.get_provider (hub = hub)
-    return provider
-# >>>>>
-def jobs (provider = None, hub = 'ibm-q', backend = None, age = '1d', # <<<
-          ** kwargs):
-    """
-    Yields jobs.
+    Yields jobs meeting the given descriptions at selected backends.
 
-    The arguments ``provider``, ``hub``, and ``backend`` are used to get
-    backends (see :func:`~backends`).  Then, for each backend, jobs are
-    yielded with ``kwargs``.
+    The arguments ``provider``, ``instance`` are used to get the provider
+    (:func:`get_provider`).
 
-    For details of what ``kwargs`` can be,
-    `see here <https://qiskit.org/documentation/stubs/qiskit.providers.ibmq.IBMQBackend.jobs.html>`_.
+    Then, ``provider.backend.jobs`` is invoked with ``kwargs`` passed to it
+    to collect jobs.
 
-    Note that by default ``limit = 10`` is, implicitly, part of ``kwargs``,
-    which means, in this function, 10 jobs maximum yielded per backend.
+    For possible keys for ``kwargs``, see the documentation for
+    :func:`~qiskit_ibm_provider.ibm_backend_service.IBMBackendService.jobs`.
+    The keys include ``"backend_name"`` (to filter for specific backend),
+    ``"start_datetime"``, and ``"end_datetime"``. 
 
-    If none of ``kwargs`` is given, then by default
+    Note that by default ``limit = 10`` is implied, meaning the maximum of 10
+    jobs yielded.
 
     :param age:  By default, the ``start_datetime`` argument in ``kwargs`` is
         automatically generated so that only jobs created within one day are
@@ -640,8 +717,8 @@ def jobs (provider = None, hub = 'ibm-q', backend = None, age = '1d', # <<<
         any other string that ends with 'd' or 'h', or any false value (in
         which case, there will be no consideration of this argument).
 
-        If ``start_datetime`` is specified in ``kwargs``, then this argument
-        will not be considered at all.
+        If ``start_datetime`` is already specified in ``kwargs``, then that
+        takes precedence and this argument will have no effect at all.
     """
     if 'start_datetime' not in kwargs and age:
         import datetime, dateutil
@@ -656,9 +733,67 @@ def jobs (provider = None, hub = 'ibm-q', backend = None, age = '1d', # <<<
         kwargs ['start_datetime'] = (
                 datetime.datetime.now (dateutil.tz.tzlocal ()) -
                 timedelta_o)
-    for b in backends (provider = provider, hub = hub, backend = backend):
-        for j in b.jobs (** kwargs):
-            yield j
+    p = get_provider (provider = provider, instance = instance)
+    for j in p.backend.jobs (** kwargs):
+        yield j
+# >>>
+def jobs_monitor (jobs, interval = None, # <<< # pylint: disable=W0621
+                  quiet = False, job_id_minlen = 6,
+                  line_discipline = "\r", output = None):
+    """
+    A bit like of qiskit.tools.monitor.job_monitor, but for an iterable of
+    jobs, instead of a single job.
+    """
+    import sys, time
+    if interval is None:
+        interval = 5
+    assert type (interval) is int and interval >= 1
+    assert type (job_id_minlen) is int and job_id_minlen >= 4
+    assert type (line_discipline) is str
+    if output is None:
+        output = sys.stderr
+    #print (type (jobs), jobs)
+    jobs = tuple (jobs)
+    n_jobs = len (jobs)
+    ended = frozenset (('DONE', 'CANCELLED', 'ERROR'))
+    states = [None] * n_jobs
+    job_ids = list (job.job_id () for job in jobs)
+    while True:
+        job_ids_short = list (j [:job_id_minlen] for j in job_ids)
+        if len (set (job_ids_short)) == n_jobs:
+            break
+        job_id_minlen += 2
+    all_ended = False
+    msg_len = 0
+    while True:
+        all_ended = True
+        for i, job in enumerate (jobs):
+            if states [i] in ended:
+                continue
+            status = job.status ()
+            state = status.name
+            if state == 'QUEUED':
+                queue_position = job.queue_position ()
+                if queue_position is not None:
+                    state += f'({queue_position})'
+            states [i] = state
+            all_ended = False
+        msg = (f'Status for {n_jobs} job{"s" if n_jobs > 1 else ""}: ' +
+            ', '.join (':'.join ([job_id_short, state])
+                for job_id_short, state in zip (job_ids_short, states)))
+        lendiff = msg_len - len (msg)
+        if lendiff > 0:
+            msg += " " * lendiff
+        msg_len = len (msg)
+        if not quiet:
+            print (line_discipline + msg, end = '', file = output)
+        if all_ended:
+            break
+        if 'QUEUED' not in states:
+            interval = 2
+        time.sleep (interval)
+    if not quiet:
+        print ('', file = output)
 # >>>
 def memory_item_index (r, * clbitspec): # <<<
     """
@@ -700,10 +835,11 @@ def memory_item_index (r, * clbitspec): # <<<
                                   else regname])
     return ans [0] if len (ans) == 1 else tuple (ans)
 # >>>
-def run_quantum_computer (qc, hub = 'ibm-q', shots = 2000, memory = True, # <<<
-                          qasm3 = False, backend = None, quiet = False):
+def run_quantum_computer (qc, instance = None, shots = 2000, # <<<
+                          memory = True, qasm3 = False, backend = None,
+                          quiet = False):
     """
-    Runs a real quantum computer on quantum circuit ``qc``.
+    Runs quantum circuit ``qc`` on a real quantum computer.
 
     :param qasm3:  WIP.  Does not seem to work if this option is turned on,
         as of 01-25-2023.  Nor do the dynamic code examples in the IBM qiskit
@@ -717,20 +853,15 @@ def run_quantum_computer (qc, hub = 'ibm-q', shots = 2000, memory = True, # <<<
         name.
     """
     n = qc.num_qubits
-    if qasm3:
-        from qiskit_ibm_provider import IBMProvider
-        provider = IBMProvider ()
-    else:
-        provider = None
-    bs = list (backends (provider = provider, hub = hub, backend = backend,
+    bs = list (backends (instance = instance, backend = backend,
                          filters = lambda x:
                             x.configuration ().n_qubits >= n and
                             not x.configuration ().simulator and
                             x.status ().operational == True))
     if not len (bs):
-        raise ValueError ("No operational backends found.")
+        raise ValueError ("No suitable backends found.")
     if len (bs) > 1:
-        from qiskit.providers.ibmq import least_busy # pylint: disable=W0406,E0401,E0611
+        from qiskit_ibm_provider import least_busy
         b = least_busy (bs)
         if not quiet:
             print ("backend auto-determined as the least busy:", b)
@@ -738,7 +869,7 @@ def run_quantum_computer (qc, hub = 'ibm-q', shots = 2000, memory = True, # <<<
         b = bs [0]
     from qiskit import transpile # pylint: disable=W0406,E0611
     kwargs = {}
-    if qasm3:
+    if qasm3: # WIP
         #from qiskit import qasm3 as q3 # pylint: disable=W0406,E0611
         qc_t = transpile (qc, b)
         #runnable = q3.Exporter (basis_gates =

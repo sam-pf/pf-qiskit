@@ -765,7 +765,9 @@ def jobs_monitor (jobs, interval = None, # <<< # pylint: disable=W0621
         job_id_minlen += 2
     all_ended = False
     msg_len = 0
+    loop_count = 0
     while True:
+        loop_count += 1
         all_ended = True
         for i, job in enumerate (jobs):
             if states [i] in ended:
@@ -773,10 +775,13 @@ def jobs_monitor (jobs, interval = None, # <<< # pylint: disable=W0621
             status = job.status ()
             state = status.name
             if state == 'QUEUED':
-                queue_position = job.queue_position (refresh = True)
+                queue_position = job.queue_position (refresh = loop_count %
+                                                     10 == 0)
                 if queue_position is not None:
                     state += f'({queue_position}' # )
-                    ect = job.queue_info ().estimated_complete_time
+                    ect = job.queue_info ()
+                    if ect is not None:
+                        ect = ect.estimated_complete_time
                     if ect:
                         # add estimated time information
                         tz = ect.tzinfo

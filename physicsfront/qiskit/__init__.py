@@ -744,7 +744,7 @@ def jobs_monitor (jobs, interval = None, # <<< # pylint: disable=W0621
     A bit like of qiskit.tools.monitor.job_monitor, but for an iterable of
     jobs, instead of a single job.
     """
-    import sys, time
+    import datetime, sys, time
     if interval is None:
         interval = 5
     assert type (interval) is int and interval >= 1
@@ -773,9 +773,20 @@ def jobs_monitor (jobs, interval = None, # <<< # pylint: disable=W0621
             status = job.status ()
             state = status.name
             if state == 'QUEUED':
-                queue_position = job.queue_position ()
+                queue_position = job.queue_position (refresh = True)
                 if queue_position is not None:
-                    state += f'({queue_position})'
+                    state += f'({queue_position}' # )
+                    ect = job.queue_info ().estimated_complete_time
+                    if ect:
+                        # add estimated time information
+                        tz = ect.tzinfo
+                        dt = ect - datetime.datetime.now (tz)
+                        dt_s = str (dt)
+                        dotpos = dt_s.rfind ('.')
+                        if dotpos > 0:
+                            dt_s = dt_s [: dotpos]
+                        state += f'; {dt_s}' # (
+                    state += ')'
             states [i] = state
             all_ended = False
         msg = (f'Status for {n_jobs} job{"s" if n_jobs > 1 else ""}: ' +

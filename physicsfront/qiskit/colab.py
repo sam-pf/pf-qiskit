@@ -161,31 +161,49 @@ def _setup_account (reload = False, instance = None, quiet = False, # <<<
     # time to move on to the new style.
     ##
     if not quiet:
-        print ("== Account setup (you might be prompted for an API TOKEN) ...",
-               end = ' ', flush = True)
+        print ("== Account setup (you may be prompted for an API TOKEN) ...")
     from . import get_provider
     provider = get_provider (provider = 'cached', instance = instance)
     if provider and not reload:
         if not quiet:
-            print ("OK! (account already active; reload not requested)\n"
-                "   Restart runtime if you wish to restart everything anew.")
+            print (
+'''   Account is active already and reload was not requested.
+   Restart runtime if you wish to restart everything anew.''')
         return
     _, rv = _check_setup_file ('json', fallback_filename = filename)
-    if rv:
+    if rv and False: # temporary
         provider = get_provider (provider = 'renew' if reload else None,
                                  instance = instance)
     else:
-        old_token = '' # d ['token'] if d else ''
-        import IPython # pylint: disable=E0401
-        display = IPython.display.display
-        from google.colab import output # pylint: disable=E0401,E0611
-        display (IPython.display.Javascript (f'window._key = "{old_token}"'))
-        display (IPython.display.Javascript ('''
-window._key = prompt ("Please enter your IBM Quantum API TOKEN:", window._key)
-        '''))
-        token = output.eval_js ('_key')
+        ##
+        # This code based on 'prompt' deos not work for chrome (works for
+        # firefox though).  In chrome, the 'prompt' part does nothing, while
+        # there is no message of any kind.
+        #
+        #old_token = '' # d ['token'] if d else ''
+        #import IPython # pylint: disable=E0401
+        #display = IPython.display.display
+        #from google.colab import output # pylint: disable=E0401,E0611
+        #display (IPython.display.Javascript (f'window._key = "{old_token}"'))
+        #display (IPython.display.Javascript ('''
+#window._key = prompt ("Please enter your IBM Quantum API TOKEN:", window._key)
+        #'''))
+        #token = output.eval_js ('_key')
         # for safety; even if javascript is sandboxed per cell
-        output.eval_js ('delete window._key')
+        #output.eval_js ('delete window._key')
+        ##
+        import getpass
+        print ("   Paste your IBM Quantum API token and then hit Enter.")
+        token = getpass.getpass ("   Your IBM Quantum API token: ")
+        # Be tolerant about copy-paste mistake up to partial quotation marks.
+        if token.startswith ("'"):
+            token = token [1:]
+            if token.endswith ("'"):
+                token = token [:-1]
+        elif token.startswith ('"'):
+            token = token [1:]
+            if token.endswith ('"'):
+                token = token [:-1]
         provider = get_provider (token = token, instance = instance)
     if not provider:
         raise Exception ("Failed to set up an IBM Quantum provider.") # pylint: disable=W0719
@@ -194,7 +212,7 @@ window._key = prompt ("Please enter your IBM Quantum API TOKEN:", window._key)
         dargs.pop ('channel', None)
         provider.save_account (** dargs)
     if not quiet:
-        print ("OK!")
+        print ("   Your account is successfully set up!")
 # >>>
 def _setup_settings (reload = False, quiet = False, filename = None): # <<<
     if not quiet:

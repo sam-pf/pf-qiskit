@@ -1,3 +1,9 @@
+# 0.1.6.2
+> prompt -> getpass for API token input
+
+1. When the IBM Quantum token needs to be entered, python getpass is used
+   instead of javascript prompt, which appears to be disabled in Chrome.
+
 # 0.1.6.1
 > colab.init bug fix, pip requirements enhancement, migration to qiskit_ibm_provider
 

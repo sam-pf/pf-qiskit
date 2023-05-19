@@ -171,7 +171,7 @@ def _setup_account (reload = False, instance = None, quiet = False, # <<<
    Restart runtime if you wish to restart everything anew.''')
         return
     _, rv = _check_setup_file ('json', fallback_filename = filename)
-    if rv and False: # temporary
+    if rv:
         provider = get_provider (provider = 'renew' if reload else None,
                                  instance = instance)
     else:

@@ -857,23 +857,23 @@ def run_quantum_computer (qc, instance = None, shots = 2000, # <<<
     """
     Runs quantum circuit ``qc`` on a real quantum computer.
 
-    :param qasm3:  WIP.  Does not seem to work if this option is turned on,
-        as of 01-25-2023.  Nor do the dynamic code examples in the IBM qiskit
-        tutorial, when they are run in IBM Quantum Jupyter lab.
-
-        When this argument is turned on, passing ``backend`` as a backend
-        instance might be preferred.  And, ``memory`` might not work (I get a
-        warning).
+    :param qasm3:  With this option, a dynamic circuit using OpenQASM3
+        features can be run.  In this case, backends without qasm3 will be
+        ignored.  Also, as of 2023-05-20, the ``memory`` argument does not
+        have any input to the job, since for a qasm3 job memory is always
+        returned as part of the result.
 
     :param backend:  If given, then it can be a backend instance or a backend
         name.
     """
     n = qc.num_qubits
-    bs = list (backends (instance = instance, backend = backend,
-                         filters = lambda x:
-                            x.configuration ().n_qubits >= n and
-                            not x.configuration ().simulator and
-                            x.status ().operational == True))
+    def ff (x):
+        config = x.configuration ()
+        return ((not qasm3 or 'qasm3' in config.supported_features) and (
+            config.n_qubits >= n and
+            not config.simulator and
+            x.status ().operational))
+    bs = list (backends (instance = instance, backend = backend, filters = ff))
     if not len (bs):
         raise ValueError ("No suitable backends found.")
     if len (bs) > 1:
@@ -884,17 +884,18 @@ def run_quantum_computer (qc, instance = None, shots = 2000, # <<<
     else:
         b = bs [0]
     from qiskit import transpile # pylint: disable=W0406,E0611
-    kwargs = {}
+    kwargs = {'shots': shots}
     if qasm3: # WIP
-        #from qiskit import qasm3 as q3 # pylint: disable=W0406,E0611
-        qc_t = transpile (qc, b)
-        #runnable = q3.Exporter (basis_gates =
-        #        b.configuration ().basis_gates).dumps (qc_t)
-        runnable = qc_t
+        runnable = transpile (qc, b)
         kwargs ['dynamic'] = True
+        ##
+        # In the qasm3 case, it leads to an error (!) if 'memory' is passed
+        # in kwargs.  The result contains memory anyway.
+        ##
     else:
         runnable = transpile (qc, b, optimization_level = 3)
-    return b.run (runnable, shots = shots, memory = memory, ** kwargs)
+        kwargs ['memory'] = memory
+    return b.run (runnable, ** kwargs)
 # >>>
 def run_quantum_simulator (qc, shots = 2000, memory = True, seed = 100): # <<<
     """

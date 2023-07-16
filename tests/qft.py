@@ -1,15 +1,8 @@
 # pylint: disable=E0401
 
 def _test_suite (): # <<<
-    #from physicsfront.qiskit import get_provider
     from pf6.defs import UNITTEST_ASSERT_SHORTCUTS_DICT
     import unittest
-
-    #import sys
-    #print ("Getting the provider ... this may take some time ... ", end = '')
-    #sys.stdout.flush ()
-    #p = get_provider ()
-    #print (" OK!")
 
     class Test_QFT_factory (unittest.TestCase): # <<< pylint: disable=W0641
 
@@ -81,8 +74,7 @@ def _test_suite (): # <<<
                         qcs.append (qft_demo_qc_1 (
                             n, inverse = inverse, mf = mf,
                             output_endian = output_endian))
-            #print ("Qasm simulator")
-            # To run through this simulator background, no account needed.
+            # To run through this simulator backend, no account needed.
             sim_backend = BasicAer.get_backend ("qasm_simulator")
             job = execute (qcs, sim_backend, shots = 1024)
             result = job.result ()

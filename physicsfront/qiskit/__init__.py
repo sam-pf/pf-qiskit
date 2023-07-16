@@ -620,7 +620,8 @@ def gather_counts (r, * clbitspec, predicate = None, keys = None): # <<<
 # >>>
 def get_provider (): # <<<
     _cached = None
-    def _get_provider (provider = None, token = None, instance = None):
+    def _get_provider (provider = None, token = None, instance = None,
+                       bwc = False):
         """
         Returns a provider instance based on the information given.
 
@@ -663,8 +664,10 @@ def get_provider (): # <<<
         # first place!
         ##
         from qiskit_ibm_provider.ibm_provider import IBMProvider
-        from qiskit.providers.ibmq.accountprovider import AccountProvider # pylint: disable=E0611,E0401
-        classes = (IBMProvider, AccountProvider)
+        classes = (IBMProvider,)
+        if bwc:
+            from qiskit.providers.ibmq.accountprovider import AccountProvider # pylint: disable=E0611,E0401
+            classes += (AccountProvider,)
         from qiskit_ibm_provider import IBMProvider # pylint: disable=W0404
         if isinstance (provider, classes):
             return provider

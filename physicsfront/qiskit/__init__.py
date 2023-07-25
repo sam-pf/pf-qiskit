@@ -888,7 +888,7 @@ def run_quantum_computer (qc, instance = None, shots = 2000, # <<<
         b = bs [0]
     from qiskit import transpile # pylint: disable=W0406,E0611
     kwargs = {'shots': shots}
-    if qasm3: # WIP
+    if qasm3:
         runnable = transpile (qc, b)
         kwargs ['dynamic'] = True
         ##

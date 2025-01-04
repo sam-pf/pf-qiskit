@@ -11,5 +11,4 @@ some utility functions for running jobs in `qiskit`.
 
 ## Releases
 
-Check out [the pypi
-page](https://pypi.org/project/physicsfront-qiskit/#history).
+Check out [the pypi page](https://pypi.org/project/physicsfront-qiskit/#history).
